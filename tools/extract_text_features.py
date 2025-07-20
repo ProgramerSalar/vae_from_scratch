@@ -1,23 +1,22 @@
-import torch, os, random, sys
+
+import sys
+import os
+from pathlib import Path
+
+# --- Add project root to sys.path ---
+current_dir = Path(__file__).resolve().parent  # /tools directory
+project_root = current_dir.parent  # Project root (parent of /tools)
+sys.path.append(str(project_root))
+# -----------------------------------
+
+
+
+import torch, random
 import argparse
 from torch.utils.data import Dataset, DistributedSampler, DataLoader
 import jsonlines
 from tqdm import tqdm
 import numpy as np 
-
-
-# from pyramid_dit import FluxTextEncoderWithMask, SD3TextEncoderWithMask
-# from trainer_misc import init_distributed_mode
-
-print(f"this is the sys path: {sys.path}")
-try:
-    from trainer_misc.utils import init_distributed_mode 
-    print("Import sucessfull.")
-
-except ImportError as e:
-    print(f"Import Failed: {e}")
-
-
 
 
 from trainer_misc.utils import init_distributed_mode
@@ -32,8 +31,9 @@ def get_args():
     parser = argparse.ArgumentParser('Pytorch Multi-process script', add_help=False)
     parser.add_argument('--batch_size', default=4, type=int, help='This is the batch size')
     parser.add_argument('--anno_file', type=str, default='', help="This is video annotation file")
-    parser.add_argument('--model_dtype', default='bf16', type=str, help='The Model Architecture Name', choices=["pyramid_flux", "pyramid_mmdit"])
+    parser.add_argument('--model_dtype', default='bf16', type=str, help='THe Model Dtype: bf16 or df16')
     parser.add_argument('--model_path', default='', type=str, help='The pre-trained weight path')
+    parser.add_argument('--model_name', default='pyramid_flux', type=str, help='The Model Architecture Name', choices=["pyramid_flux", "pyramid_mmdit"])
 
     return parser.parse_args()
 
