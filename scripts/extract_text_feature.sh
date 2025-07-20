@@ -4,13 +4,13 @@
 # Since the T5 will cost a lot of GPU memory, pre-extract the text feature will save the training memory 
 
 
-GPUS=0 # The gpu number 
+GPUS=1 # The gpu number 
 MODEL_NAME=pyramid_flux     # The model name, `pyramid_flux` or `pyramid_mmdit`
-MODEL_PATH=/PATH/pyramid-flow-miniflux  # This downloaded ckpt dir. IMPORTANT: It should match with model_name, flux or mmdit (sd3)
+MODEL_PATH=PATH/pyramid-flow-miniflux  # This downloaded ckpt dir. IMPORTANT: It should match with model_name, flux or mmdit (sd3)
 ANNO_FILE=annotation/video_text.jsonl   # This video-text annotation file path 
 
 
-torchrun --nproc_per_node $GPUS \
+torchrun --nproc_per_node=$GPUS \
     tools/extract_text_features.py \
     --batch_size 1 \
     --model_dtype bf16 \
