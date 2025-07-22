@@ -21,7 +21,7 @@ import numpy as np
 
 from trainer_misc.utils import init_distributed_mode
 from pyramid_dit.flux_modules.modeling_text_encoder import FluxTextEncoderWithMask
-from pyramid_dit.mmdit_modules.modeling_text_encoder import SD3TextEncoderWithMask
+# from pyramid_dit.mmdit_modules.modeling_text_encoder import SD3TextEncoderWithMask
 
 
 
@@ -135,8 +135,7 @@ def build_model(args):
         
 
     elif model_name == "pyramid_mmdit":
-        text_encoder = SD3TextEncoderWithMask(model_path=model_path,
-                                              torch_dtype=torch_dtype)
+        pass 
         
 
     else:
