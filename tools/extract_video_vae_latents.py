@@ -158,8 +158,8 @@ class VideoDataset(Dataset):
                 video_path=video_path,
                 frame_indexs=frame_indexs,
                 frame_number=self.num_frames,   # The number of frames to encode 
-                num_width=self.width,
-                num_height=self.height,
+                new_width=self.width,
+                new_height=self.height,
                 resize=True
             )
 
@@ -322,7 +322,9 @@ def main():
             input_video_list = sample['input']
             output_path_list = sample['output']
 
-            with torch.no_grad(), torch.cuda.amp.autocast(enabled=True, dtype=torch_dtype):
+            with torch.no_grad(), torch.autocast(device_type="cuda",
+                                                 enabled=True, 
+                                                 dtype=torch_dtype):
                 for video_input, output_path in zip(input_video_list, output_path_list):
 
                     video_latent = model.encode_latent(video_input.to(device), 
@@ -344,5 +346,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
