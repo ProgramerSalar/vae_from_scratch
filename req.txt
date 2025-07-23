@@ -1,5 +1,5 @@
 jsonlines
 transformers==4.39.3
-timm==0.6.12
+timm
 piq
 accelerate==0.30.0
