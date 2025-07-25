@@ -130,6 +130,6 @@ if __name__ == "__main__":
                                                batch_size=1,
                                                num_workers=1,
                                                world_size=1,
-                                               rank=1)
-    
-    print(dataloader)
+                                               rank=0)
+    for loader in dataloader:
+        print(dataloader)
