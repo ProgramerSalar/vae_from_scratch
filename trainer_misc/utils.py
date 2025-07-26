@@ -54,4 +54,3 @@ def init_distributed_mode(args, init_pytorch_ddp=True):
                 world_size=args.world_size, rank=args.rank, timeout=datetime.timedelta(days=365))
         torch.distributed.barrier()
         setup_for_distributed(args.rank == 0)
-
