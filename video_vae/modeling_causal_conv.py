@@ -4,7 +4,7 @@ from typing import Union, Tuple
 from collections import deque
 import torch.nn.functional as F
 from torch import Tensor
-
+from einops import rearrange
 
 from .utils.utils import trunc_normal_
 from utils import (
@@ -92,6 +92,12 @@ class CausalConv3d(nn.Module):
 
 
     def context_parallel_forward(self, x):
+
+        """ 
+            context parallelism is technique used in distributed training of deep learning models
+            where different parts of the input context (in this case, likely the temporal dimension of a video or sequence)
+            are processed on different devices or ranks.
+        """
 
         cp_rank = get_context_parallel_rank()
 
@@ -181,10 +187,16 @@ class CausalGroupNorm(nn.GroupNorm):
     def forward(self, 
                 x: Tensor) -> Tensor:
         
-        t = t.shape[2]
-
-
-
+        t = x.shape[2]
+        x = rearrange(tensor=x, 
+                      pattern='b c t h w -> (b t) c h w')
+        x = super().forward(x)
+        x = rearrange(tensor=x, 
+                      pattern='(b t) c h w -> b c t h w', 
+                      t=t)
+        
+        return x 
+        
 
     
 
@@ -207,4 +219,4 @@ if __name__ == "__main__":
     # output = causasl_conv_3d(x)
     # print(output.shape)
 
-    pass
+    

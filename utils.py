@@ -30,7 +30,7 @@ def is_context_parallel_intialized():
 def get_rank():
 
     if not is_dist_avail_and_initialized():
-        return 1 
+        return 0
     
     return dist.get_world_size()
 
