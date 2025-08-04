@@ -92,7 +92,7 @@ class CausalResnetBlock3D(nn.Module):
                                      zq_channels=temb_channels)
             
         else:
-            print(f"what is the groups: {groups} and channels: {in_channels}")
+            # print(f"what is the groups: {groups} and channels: {in_channels}")
             self.norm1 = CausalGroupNorm(num_groups=groups,
                                          num_channels=in_channels,
                                          eps=eps,
@@ -153,7 +153,7 @@ class CausalResnetBlock3D(nn.Module):
         hidden_states = input_tensor
 
         if self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
-            print(f"what is the shape of hidden states: {hidden_states.shape} and temb: {temb.shape}")
+            # print(f"what is the shape of hidden states: {hidden_states.shape} and temb: {temb.shape}")
             hidden_states = self.norm1(hidden_states, temb)
 
         else:
@@ -165,9 +165,9 @@ class CausalResnetBlock3D(nn.Module):
                                    temporal_chunk=temporal_chunk)
         
         if temb is not None and self.time_embedding_norm == "default":
-            print(f"what is the shape of hidden_states: {hidden_states.shape} & shape of temb: {temb.shape}")
-            # hidden_states = hidden_states + temb
-            hidden_states = hidden_states + temb[:, None, None, None, :]
+            # print(f"what is the shape of hidden_states: {hidden_states.shape} & shape of temb: {temb.shape}")
+            hidden_states = hidden_states + temb
+            # hidden_states = hidden_states + temb[:, None, None, None, :]
 
         if self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
             hidden_states = self.norm2(hidden_states, temb)
@@ -303,6 +303,7 @@ class ResnetBlock2D(nn.Module):
 
         hidden_states = self.nonlinearity(hidden_states)
 
+        print(f"what is the shape of hidden states: {hidden_states.shape} \n The conv1 is : {self.conv1}")
         hidden_states = self.conv1(hidden_states)
 
         if temb is not None and self.time_embedding_norm == "default":
