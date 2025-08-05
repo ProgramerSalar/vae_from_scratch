@@ -6,3 +6,5 @@ accelerate==0.30.0
 git clone https://github.com/NVIDIA/apex
 cd apex
 pip install -v --disable-pip-version-check --no-build-isolation --no-cache-dir ./
+peft
+bitsandbytes
