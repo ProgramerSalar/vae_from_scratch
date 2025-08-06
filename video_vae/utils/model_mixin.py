@@ -59,7 +59,7 @@ from diffusers.utils import (
 
 )
 
-from diffusers.utils.dynamic_modules_utils import (
+from diffusers.models.model_loading_utils import (
     _determine_device_map,
     _fetch_index_file,
     _fetch_index_file_legacy,
@@ -67,6 +67,7 @@ from diffusers.utils.dynamic_modules_utils import (
     load_model_dict_into_meta,
     load_state_dict,
 )
+
 
 
 

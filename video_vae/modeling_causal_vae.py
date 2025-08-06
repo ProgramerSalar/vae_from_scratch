@@ -1,23 +1,30 @@
 import torch 
-from typing import Tuple, Dict, Union
+from typing import Tuple, Dict, Union, Optional
 from torch import nn 
-
-
 
 
 # from diffusers.models.modeling_utils import ModelMixin
 from .utils.model_mixin import ModelMixin
-
 # from diffusers.configuration_utils import ConfigMixin, register_to_config
 from .utils.config_mixin import ConfigMixin
 from .utils.register_to_config import register_to_config
+
+# from timm.models.layers import trunc_normal_
 from .utils.utils import  trunc_normal_
+
 from .modeling_enc_dec import (
     CausalVaeEncoder,
     CausalVaeDecoder,
-    DiagonalGaussianDistribution
+    DiagonalGaussianDistribution,
+    DecoderOutput
 )
 from .modeling_causal_conv import CausalConv3d
+from utils import is_context_parallel_intialized
+from .context_parallel_ops import (
+    conv_gather_from_context_parallel_region,
+    get_context_parallel_rank
+)
+
 
 
 from diffusers.models.attention_processor import (
@@ -28,6 +35,8 @@ from diffusers.models.attention_processor import (
     CROSS_ATTENTION_PROCESSORS
 )
 from diffusers.models.modeling_outputs import AutoencoderKLOutput
+
+
 
 
 class CausalVideoVAE(ModelMixin, 
@@ -346,13 +355,468 @@ class CausalVideoVAE(ModelMixin,
         self.tile_sample_min_size = tile_sample_min_size
         self.tile_latent_min_size = int(tile_sample_min_size / self.downsample_scale)
 
-        if self.use_tiling and (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size):
-            return self.tile_encode()
+        if self.use_tiling and \
+            (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size):
+
+            return self.tile_encode(x=x,
+                                    return_dict=return_dict,
+                                    is_init_image=is_init_image,
+                                    temporal_chunk=temporal_chunk,
+                                    window_size=window_size)
         
 
-    def tile_encode():
-        pass 
+        if temporal_chunk:
+            moments = self.chunk_encode(x=x,
+                                        window_size=window_size)
+            
+        else:
+            h = self.encoder(x, is_init_image=is_init_image, temporal_chunk=False)
+            moments = self.quant_conv(h, is_init_image=is_init_image, temporal_chunk=False)
 
+        posterior = DiagonalGaussianDistribution(moments)
+
+        if not return_dict:
+            return_dict (posterior,)
+
+        return AutoencoderKLOutput(latent_dist=posterior)
+    
+
+        
+
+
+        
+
+    def tile_encode(self,
+                    x: torch.FloatTensor,
+                    return_dict: bool = True,
+                    is_init_image=True,
+                    temporal_chunk=False,
+                    window_size=16) -> AutoencoderKLOutput:
+        
+        r"""
+        Encode a batch of images using a tiled encoder.
+
+        When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several 
+        steps. This is useful to keep memory use constant regardless of image size.
+        The end result of tiled encoding is different form non-tiled encoding because each tile uses a different encoder.
+        To avoid tiling artifacts, the tile overlap and are blanded together to form a smooth output. 
+        You may sill see tile-sized changed in the output. but they should be much less noticeable.
+
+        Args;
+            x (`torch.FloatTensor`): Input batch of images.
+            return_dict (`bool`, *optional*, default to `True`):
+                Whether or not to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain `tuple` is returned.
+
+
+        Returns:
+            [`~models.autoencoder_kl.AutoencoderKLOutput`] or `tuple`:
+                If return_dict is True a [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned. otherwise a plan `tuple` is returned.
+        """
+
+        
+        # This line calculate the size of the non-overlapping poration of a tile.
+        # The `tile_sample_min_size` is the size of the tile and 
+        # `encoder_tile_overlap_factor` is the poration of the tile that overlap with it's neighbors.
+        overlap_size = int(self.tile_sample_min_size * (1 - self.encoder_tile_overlap_factor))
+
+        # This calculate the size of the overlap region in the latent space. it's size of the area where  blending will occur. 
+        blend_extent = int(self.tile_latent_min_size * self.encoder_tile_overlap_factor)
+
+        # This calculation the non-overlapping portion of the tile space.
+        # when the blended tiles are stitched together, only this non-overlaping part of each tile is used to construct the final output.
+        row_limit = self.tile_latent_min_size - blend_extent
+
+
+        # split the image into 512x512 tiles and encode them seperately.
+        rows = []
+
+        # This is the outer loop that iterates over the height of the input tensor `x`
+        #  It moves in steps of `overlap_size` to select each row of tiles
+        for i in range(0, x.shape[3], overlap_size):
+            row = []
+            for j in range(0, x.shape[4], overlap_size):
+                # this line extract a single tile from the input tensor `x`
+                # the tile has size of `self.tile_sample_min_size` in both height and width
+                tile = x[:, :, :, i: i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+
+                if temporal_chunk:
+                    # if `temporal_chunk` is true,
+                    # this call `chunk_encode` to handle the importal dimension of the video data.
+                    # it processes the tile as a sequence of frames.
+                    tile = self.chunk_encode(x=tile,
+                                             window_size=window_size)
+                    
+                else:
+                    tile = self.encoder(tile,
+                                        is_init_image=True,
+                                        temporal_chunk=False)
+                    tile = self.quant_conv(tile,
+                                           is_init_image=True,
+                                           temporal_chunk=False)
+                    
+                row.append(tile)
+            rows.append(row)
+
+
+
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                # blend the above tile and the left tile 
+                # to the current tile and add the current tile to the result row 
+                if i > 0:
+                    tile = self.blend_v(a=rows[i - 1][j],
+                                        b=tile,
+                                        blend_extent=blend_extent)
+                    
+                if j > 0:
+                    tile = self.blend_h(a=row[j - 1],
+                                        b=tile,
+                                        blend_extent=blend_extent)
+                    
+                result_row.append(tile[:, :, :row_limit, :row_limit])
+
+            result_rows.append(torch.cat(result_rows, dim=3))
+            
+        moments = torch.cat(result_rows, dim=3)
+
+        posterior = DiagonalGaussianDistribution(moments)
+
+        if not return_dict:
+            return_dict (posterior,)
+
+        return AutoencoderKLOutput(latent_dist=posterior)
+
+
+    @torch.no_grad()
+    def chunk_encode(self,
+                     x: torch.FloatTensor,
+                     window_size=16):
+        
+        # only used during interface 
+        # Encode a long video clip through sliding window 
+
+
+        # This line gets the number of frames in the input video tensor the dim= `batch_size, channels, frames, height, width`
+        num_frames = x.shape[2]
+        # The number of frames minus one is evenly divisible by `self.downsample_scale`
+        assert (num_frames - 1) % self.downsample_scale == 0, "make sure [frames - 1] are divisible by {self.downsample_scale}"
+        init_window_size = window_size - 1 
+        # the first chunk of the video shape id `batch_size, channels, frames`
+        frame_list = [x[:, :, :init_window_size]]
+
+        # to chunk the long video 
+
+        # This calculate how many full-sized chunk can be made from the rest of the video after the initial chunk.
+        full_chunk_size = (num_frames - init_window_size) // window_size
+        fid = init_window_size 
+
+        for idx in range(full_chunk_size):
+            # Inside the loop, a chunk of `window_size` frames is extracted from the video,
+            # starting at `fid` and appended to `frame_list`
+            append_window_size = x[:, :, fid: fid + window_size]
+            frame_list.append(append_window_size)
+            fid += window_size
+
+        if fid < num_frames:
+            frame_list.append(x[:, :, fid:])
+
+        latent_list = []
+        for idx, frames in enumerate(frame_list):
+            if idx == 0:
+                h = self.encoder(frames,
+                                is_init_image=True,
+                                temporal_chunk=True)
+                moments = self.quant_conv(h, 
+                                          is_init_image=True,
+                                          temporal_chunk=True)
+                
+            else:
+                h = self.encoder(frames,
+                                 is_init_image=False,
+                                 temporal_chunk=True)
+                moments = self.quant_conv(h, 
+                                          is_init_image=False,
+                                          temporal_chunk=True)
+                
+            latent_list.append(moments)
+            
+        latent = torch.cat(latent_list, dim=2)
+        return latent
+    
+    def blend_v(self,
+                a: torch.Tensor,
+                b: torch.Tensor,
+                blend_extent: int) -> torch.Tensor:
+        
+        blend_extent = min(a.shape[3], b.shape[3], blend_extent)
+        for y in range(blend_extent):
+            b[:, :, :,  y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (y / blend_extent)
+
+        return b 
+    
+
+    def blend_h(self, 
+                a: torch.Tensor,
+                b: torch.Tensor,
+                blend_extent: int) -> torch.Tensor:
+        
+        blend_extent = min(a.shape[4], b.shape[4], blend_extent)
+        for x in range(blend_extent):
+            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (x / blend_extent)
+
+        return b 
+    
+
+
+    def tile_decode(self,
+                    z: torch.FloatTensor,
+                    is_init_image=True,
+                    temporal_chunk=False,
+                    window_size=2,
+                    return_dict: bool = True,
+                ) -> Union[DecoderOutput, torch.FloatTensor]:
+        
+        r"""
+        Decoder a batch of images using a tiled decoder.
+
+        Args:
+            z (`torch.FloatTensor`): Input batch of latent vectors 
+            return_dict (`bool`, *optional*, default to `True`):
+                wether or not to return a [`~models.vae.DecoderOutput`] instead of plain tuple.
+
+        Returns:
+            [`~models.vae.DecoderOutput`] or `tuple`:
+                If return_dict is True, a [`~models.vae.DecoderOutput`] is returned, otherwise a plain `tuple` is returned.
+        """
+
+        overlap_size = int(self.tile_latent_min_size * (1 - self.decoder_tile_overlap_factor))
+        blend_extent = int(self.tile_sample_min_size * self.decoder_tile_overlap_factor)
+        row_limit = self.tile_sample_min_size - blend_extent
+
+        # split z into overlapping 64x64 tiles and decode them seperately.
+        # The tiles have an overlap to avoid seams between tiles.
+        rows = []
+        for i in range(0, z.shape[3], overlap_size):
+            row = []
+            for j in range(0, z.shape[4], overlap_size):
+                tile = z[:, :, :, i: i + self.tile_latent_min_size, j: j + self.tile_latent_min_size]
+                
+                if temporal_chunk:
+                    decoded = self.chunk_decode
+
+
+
+    @torch.no_grad()
+    def chunk_decode(self,
+                     z: torch.FloatTensor,
+                     window_size=2):
+        
+        num_frames = z.shape[2]
+        init_window_size = window_size + 1 
+        frame_list = [z[:, :, :init_window_size]]
+
+        # To chunk the long video
+        full_chunk_size = (num_frames - init_window_size) // window_size
+        fid = init_window_size
+
+        for idx in range(full_chunk_size):
+            frame_list.append(z[:, :, fid: fid + window_size])
+            fid += window_size
+
+        if fid < num_frames:
+            frame_list.append(z[:, :, fid:])
+
+        dec_list = []
+        for idx, frames in enumerate(frame_list):
+            if idx == 0:
+                z_h = self.post_quant_conv(frames,
+                                           is_init_image=True,
+                                           temporal_chunk=True)
+                dec = self.decoder(z_h, 
+                                   is_init_image=True,
+                                   temporal_chunk=True)
+                
+            else:
+                z_h = self.post_quant_conv(frames,
+                                           is_init_image=False,
+                                           temporal_chunk=True)
+                dec = self.decoder(z_h,
+                                   is_init_image=False,
+                                   temporal_chunk=True)
+                
+            dec_list.append(dec)
+
+        dec = torch.cat(dec_list, dim=2)
+        return dec 
+    
+
+
+    def decode(self,
+               z: torch.FloatTensor,
+               is_init_image=True,
+               temporal_chunk=False,
+               return_dict: bool = True,
+               window_size: int = 2,
+               tile_sample_min_size: int = 256,
+        ) -> Union[DecoderOutput, torch.FloatTensor]:
+
+        self.tile_sample_min_size = tile_sample_min_size
+        self.tile_latent_min_size = int(tile_sample_min_size / self.downsample_scale)
+
+        if self.use_tiling and \
+            (z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size):
+
+            return self.tile_decode(z=z,
+                                    is_init_image=is_init_image,
+                                    temporal_chunk=temporal_chunk,
+                                    window_size=window_size,
+                                    return_dict=return_dict)
+        
+        if temporal_chunk:
+            dec = self.chunk_decode(z=z,
+                                    window_size=window_size)
+            
+        else:
+            z = self.post_quant_conv(z,
+                                     is_init_image=is_init_image,
+                                     temporal_chunk=False)
+            dec = self.decoder(z, 
+                               is_init_image=is_init_image,
+                               temporal_chunk=False)
+            
+        if not return_dict:
+            return (dec,)
+        
+        return DecoderOutput(sample=dec)
+    
+
+    def forward(
+            self,
+            sample: torch.FloatTensor,
+            sample_posterior: bool = True,
+            generator: Optional[torch.Generator] = None,
+            freeze_encoder: bool = False,
+            is_init_image=True,
+            temporal_chunk=False,
+    ) -> Union[DecoderOutput, torch.FloatTensor]:
+        
+
+        r"""
+        Args:
+            sample (`torch.FloatTensor`): input sample 
+            sample_posterior (`bool`, *optional*, defaults to `False`):
+                whether to sample from the posterior 
+            return_dict (`bool`, *optional*, defaults to `True`):
+                whether or not return a [`DecoderOutput`] instead of a plain tuple.
+        """
+
+
+        x = sample 
+
+        if is_context_parallel_intialized():
+            assert self.training, "Only supports during training"
+
+            if freeze_encoder:
+                with torch.no_grad():
+                    h = self.encoder(x, 
+                                     is_init_image=True,
+                                     temporal_chunk=False)
+                    
+                    moments = self.quant_conv(h, 
+                                              is_init_image=True,
+                                              temporal_chunk=False)
+                    posterior = DiagonalGaussianDistribution(moments)
+                    global_posterior = posterior
+
+            else:
+                h = self.encoder(x, 
+                                 is_init_image=is_init_image,
+                                 temporal_chunk=False)
+                moments = self.quant_conv(h, 
+                                          is_init_image=True,
+                                          temporal_chunk=False)
+                posterior = DiagonalGaussianDistribution(moments)
+                global_moments = conv_gather_from_context_parallel_region(input_=moments,
+                                                                          dim=2,
+                                                                          kernel_size=1)
+                global_posterior = DiagonalGaussianDistribution(global_moments)
+
+
+            if sample_posterior:
+                z = posterior.sample(generator=generator)
+            else:
+                z = posterior.mode()
+
+            
+            if get_context_parallel_rank() == 0:
+                dec = self.decode(z=z,
+                                  is_init_image=True).sample 
+                
+            else:
+                # do not drop the first upsample frame 
+                dec = self.decode(z=z,
+                                  is_init_image=False).sample 
+                
+            return global_posterior, dec 
+        
+        else:
+            # The normal training 
+
+            if freeze_encoder:
+                with torch.no_grad():
+                    posterior = self.encode(x=x,
+                                            is_init_image=is_init_image,
+                                            temporal_chunk=temporal_chunk).latent_dist
+                    
+            else:
+                posterior = self.encode(x=x,
+                                        is_init_image=is_init_image,
+                                        temporal_chunk=temporal_chunk).latent_dist
+                
+
+            if sample_posterior:
+                z = posterior.sample(generator=generator)
+
+            else:
+                z = posterior.mode()
+
+            dec = self.decode(z=z,
+                              is_init_image=is_init_image,
+                              temporal_chunk=temporal_chunk).sample 
+            
+            return posterior, dec 
+        
+
+        
+    def get_last_layer(self):
+        return self.decoder.conv_out.conv.weight
+    
+
+
+if __name__ == "__main__":
+
+    causal_video_vae = CausalVideoVAE()
+    # print(causal_video_vae)
+
+    device = torch.device("cuda:0")
+    video = torch.randn(2, 3, 16, 256, 256, device=device)
+
+    # Encoder the video to latent representation 
+    with torch.no_grad(), torch.amp.autocast('cuda'):
+        encoding_output = causal_video_vae.encode(x=video,
+                                                  is_init_image=True)
+        posterior = encoding_output.latent_dist
+        latent_z = posterior.sample()
+
+    print(latent_z.shape)
+    
+    
+
+    
+
+    
 
 
 

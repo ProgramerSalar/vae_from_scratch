@@ -175,7 +175,7 @@ class CausalConv3d(nn.Module):
 
                 self.cache_front_feat.append(x[:, :, -2:].clone().detach())
 
-
+        print(f"what is the input shape {x.shape} and what is the dtype: {x.dtype} \n what is the weight-dtype of conv: {self.conv.} and bias-dtype: {self.conv.bias.dtype}")
         x = self.conv(x)
         return x 
     
