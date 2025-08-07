@@ -23,6 +23,174 @@ def divisible_by(num, den):
 def is_odd(n):
     return not divisible_by(n, 2)
 
+# class CausalConv3d(nn.Module):
+
+#     def __init__(
+#             self,
+#             in_channels,
+#             out_channels,
+#             kernel_size: Union[int, Tuple[int, int, int]],
+#             stride: Union[int, Tuple[int, int, int]] = 1,
+#             pad_mode: str = 'constant',
+#             **kwargs
+#     ):
+        
+#         print(f"~> so i should know what is the input of initial parameters, \n \
+#               in_channels: {in_channels}, out_channels: {out_channels}, kernel_size: {kernel_size}, stride: {stride}")
+        
+#         super().__init__()
+#         if isinstance(kernel_size, int):
+#             kernel_size = cast_tuple(kernel_size, 3)
+#         # print(f"what is the kernel_size : {kernel_size}")
+
+#         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
+#         self.time_kernel_size = time_kernel_size
+
+#         assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
+#         dilation = kwargs.pop('dilation', 1)
+#         self.pad_mode = pad_mode
+
+#         if isinstance(stride, int):
+#             stride = (stride, 1, 1)
+
+#         time_pad = dilation * (time_kernel_size - 1)
+#         height_pad = height_kernel_size // 2 
+#         width_pad = width_kernel_size // 2 
+
+#         self.temporal_stride = stride[0]
+#         self.time_pad = time_pad
+#         self.time_causal_padding = (width_pad, width_pad, height_pad, height_pad, time_pad, 0)
+#         self.time_uncausal_padding = (width_pad, width_pad, height_pad, height_pad, 0, 0)
+
+#         self.conv = nn.Conv3d(in_channels=in_channels,
+#                               out_channels=out_channels,
+#                               kernel_size=kernel_size,
+#                               stride=stride,
+#                               padding=0,
+#                               dilation=dilation,
+#                               **kwargs)
+        
+#         self.cache_front_feat = deque()
+
+
+#     def __clear_context_parallel_cache(self):
+#         del self.cache_front_feat
+#         self.cache_front_feat = deque()
+
+
+#     def _init_weights(self, m):
+
+#         """
+#             m: (tpically a layer in a neural network) = nn.Linear, nn.Conv2d, nn.Conv3d, nn.LayerNorm or nn.GroupNorm
+#         """
+
+#         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+#             trunc_normal_(tensor=m.weight, std=.02)
+#             if m.bias is not None:
+#                 nn.init.constant_(m.bias, 0)
+
+#         if isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+#             nn.init.constant_(m.bias, 0)
+#             nn.init.constant_(m.weight, 1.0)
+
+
+#     def context_parallel_forward(self, x):
+
+#         """ 
+#             context parallelism is technique used in distributed training of deep learning models
+#             where different parts of the input context (in this case, likely the temporal dimension of a video or sequence)
+#             are processed on different devices or ranks.
+#         """
+
+#         # print(f"what is the shape of the data: {x.shape} and dtype: {x.dtype}")
+
+#         cp_rank = get_context_parallel_rank()
+
+#         if self.time_kernel_size == 3 and ((cp_rank == 0 and x.shape[2] <= 2) or cp_rank != 0 and x.shape[2] <= 1):
+
+#             # This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel 
+#             # if you do not have enought GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU 
+#             # only forward 8 frames during training
+
+#             x = cp_pass_from_previous_rank(input_=x,
+#                                            dim=2,
+#                                            kernel_size=2)
+            
+            
+            
+#             trans_x = cp_pass_from_previous_rank(input_=x[:, :, :-1],
+#                                                  dim=2,
+#                                                  kernel_size=2)
+#             x = torch.cat([trans_x, x[:, :, -1:]], dim=2)
+
+
+#         else:
+#             x = cp_pass_from_previous_rank(input_=x,
+#                                            dim=2,
+#                                            kernel_size=self.time_kernel_size)
+            
+            
+            
+
+#         x = F.pad(x, self.time_uncausal_padding, mode='constant')
+
+#         if cp_rank != 0:
+#             if self.temporal_stride == 2 and self.time_kernel_size == 3:
+#                 x = x[:, :, 1:]
+
+            
+#         x = self.conv(x)
+#         return x 
+    
+
+
+#     def forward(self, 
+#                 x, 
+#                 is_init_image=True,
+#                 temporal_chunk=False):
+        
+#         print(f"what is the shape of the data: {x.shape}")
+        
+
+#         if is_context_parallel_intialized():
+#             # print("This is working....")
+#             return self.context_parallel_forward(x)
+        
+#         pad_mode = self.pad_mode if self.time_pad < x.shape[2] else 'constant'
+
+#         if not temporal_chunk:
+#             x = F.pad(x, self.time_causal_padding, mode=pad_mode)
+
+#         else:
+#             assert not self.training, "The feature cache should not be used in training"
+#             if is_init_image:
+#                 # Encode the first chunk 
+#                 x = F.pad(x, self.time_causal_padding, mode=pad_mode)
+#                 self.__clear_context_parallel_cache()
+#                 self.cache_front_feat.append(x[:, :, -2:].clone().detach())
+
+#             else:
+#                 x = F.pad(x, self.time_uncausal_padding, mode=pad_mode)
+#                 video_format_context = self.cache_front_feat.pop()
+#                 self.__clear_context_parallel_cache()
+
+
+#                 if self.temporal_stride == 1 and self.time_kernel_size == 3:
+#                     x = torch.cat([video_format_context, x], dim=2)
+#                 elif self.temporal_stride == 2 and self.time_kernel_size == 3:
+#                     x = torch.cat([video_format_context[:, :, -1:], x], dim=2)
+
+
+#                 self.cache_front_feat.append(x[:, :, -2:].clone().detach())
+
+#         print(f"what is the input shape {x.shape} and what is the dtype: {x.dtype} \n \
+#               what is the weight-dtype of conv: {self.conv.weight.dtype} and bias-dtype: {self.conv.bias.dtype} \n \
+#                 Let's understand the conv archeticture : {self.conv}")
+        
+#         x = self.conv(x)
+#         return x 
+    
+
 class CausalConv3d(nn.Module):
 
     def __init__(
@@ -31,118 +199,71 @@ class CausalConv3d(nn.Module):
             out_channels,
             kernel_size: Union[int, Tuple[int, int, int]],
             stride: Union[int, Tuple[int, int, int]] = 1,
-            pad_mode: str = 'constant',
+            pad_mode: str ='constant',
             **kwargs
     ):
-        
         super().__init__()
         if isinstance(kernel_size, int):
             kernel_size = cast_tuple(kernel_size, 3)
-        print(f"what is the kernel_size : {kernel_size}")
-
+    
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
         self.time_kernel_size = time_kernel_size
-
         assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
         dilation = kwargs.pop('dilation', 1)
         self.pad_mode = pad_mode
 
         if isinstance(stride, int):
             stride = (stride, 1, 1)
-
+    
         time_pad = dilation * (time_kernel_size - 1)
-        height_pad = height_kernel_size // 2 
-        width_pad = width_kernel_size // 2 
+        height_pad = height_kernel_size // 2
+        width_pad = width_kernel_size // 2
 
         self.temporal_stride = stride[0]
         self.time_pad = time_pad
         self.time_causal_padding = (width_pad, width_pad, height_pad, height_pad, time_pad, 0)
         self.time_uncausal_padding = (width_pad, width_pad, height_pad, height_pad, 0, 0)
 
-        self.conv = nn.Conv3d(in_channels=in_channels,
-                              out_channels=out_channels,
-                              kernel_size=kernel_size,
-                              stride=stride,
-                              padding=0,
-                              dilation=dilation,
-                              **kwargs)
-        
+        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride=stride, padding=0, dilation=dilation, **kwargs)
         self.cache_front_feat = deque()
 
-
-    def __clear_context_parallel_cache(self):
+    def _clear_context_parallel_cache(self):
         del self.cache_front_feat
         self.cache_front_feat = deque()
 
-
-    def __init_weights(self, m):
-
-        """
-            m: (tpically a layer in a neural network) = nn.Linear, nn.Conv2d, nn.Conv3d, nn.LayerNorm or nn.GroupNorm
-        """
-
+    def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
-            trunc_normal_(tensor=m.weight, std=.02)
+            trunc_normal_(m.weight, std=.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
-
-        if isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-
     def context_parallel_forward(self, x):
-
-        """ 
-            context parallelism is technique used in distributed training of deep learning models
-            where different parts of the input context (in this case, likely the temporal dimension of a video or sequence)
-            are processed on different devices or ranks.
-        """
-
         cp_rank = get_context_parallel_rank()
-
-        if self.time_kernel_size == 3 and ((cp_rank == 0 and x.shape[2] <= 2) or cp_rank != 0 and x.shape[2] <= 1):
-
-            # This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel 
-            # if you do not have enought GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU 
+        if self.time_kernel_size == 3 and ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
+            # This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel
+            # If you do not have enough GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU
             # only forward 8 frames during training
-
-            x = cp_pass_from_previous_rank(input_=x,
-                                           dim=2,
-                                           kernel_size=2)
-            
-            
-            
-            trans_x = cp_pass_from_previous_rank(input_=x[:, :, :-1],
-                                                 dim=2,
-                                                 kernel_size=2)
-            x = torch.cat([trans_x, x[:, :, -1:]], dim=2)
-
-
+            x = cp_pass_from_previous_rank(x, dim=2, kernel_size=2)   # pass one latent
+            trans_x = cp_pass_from_previous_rank(x[:, :, :-1], dim=2, kernel_size=2)   # pass one latent
+            x = torch.cat([trans_x, x[:, :,-1:]], dim=2)
         else:
-            x = cp_pass_from_previous_rank(input_=x,
-                                           dim=2,
-                                           kernel_size=self.time_kernel_size)
-            
-            
-            
-
+            x = cp_pass_from_previous_rank(x, dim=2, kernel_size=self.time_kernel_size)
+        
         x = F.pad(x, self.time_uncausal_padding, mode='constant')
 
         if cp_rank != 0:
             if self.temporal_stride == 2 and self.time_kernel_size == 3:
-                x = x[:, :, 1:]
+                x = x[:,:,1:]
 
-            
         x = self.conv(x)
-        return x 
-    
+        return x
 
+    def forward(self, x, is_init_image=True, temporal_chunk=False):
+        # temporal_chunk: whether to use the temporal chunk
 
-    def forward(self, 
-                x, 
-                is_init_image=True,
-                temporal_chunk=False):
         
 
         if is_context_parallel_intialized():
@@ -152,33 +273,33 @@ class CausalConv3d(nn.Module):
 
         if not temporal_chunk:
             x = F.pad(x, self.time_causal_padding, mode=pad_mode)
-
+            
         else:
+            # print(f"what is the self.training: {self.training}")
             assert not self.training, "The feature cache should not be used in training"
             if is_init_image:
-                # Encode the first chunk 
+                # Encode the first chunk
                 x = F.pad(x, self.time_causal_padding, mode=pad_mode)
-                self.__clear_context_parallel_cache()
+                self._clear_context_parallel_cache()
                 self.cache_front_feat.append(x[:, :, -2:].clone().detach())
-
             else:
                 x = F.pad(x, self.time_uncausal_padding, mode=pad_mode)
-                video_format_context = self.cache_front_feat.pop()
-                self.__clear_context_parallel_cache()
-
+                video_front_context = self.cache_front_feat.pop()
+                self._clear_context_parallel_cache()
 
                 if self.temporal_stride == 1 and self.time_kernel_size == 3:
-                    x = torch.cat([video_format_context, x], dim=2)
+                    x = torch.cat([video_front_context, x], dim=2)
                 elif self.temporal_stride == 2 and self.time_kernel_size == 3:
-                    x = torch.cat([video_format_context[:, :, -1:], x], dim=2)
-
+                    x = torch.cat([video_front_context[:,:,-1:], x], dim=2)
 
                 self.cache_front_feat.append(x[:, :, -2:].clone().detach())
 
-        print(f"what is the input shape {x.shape} and what is the dtype: {x.dtype} \n what is the weight-dtype of conv: {self.conv.} and bias-dtype: {self.conv.bias.dtype}")
+        # print(f"what is the input shape {x.shape} and what is the dtype: {x.dtype} \n \
+        #       what is the weight-dtype of conv: {self.conv.weight.dtype} and bias-dtype: {self.conv.bias.dtype} \n \
+        #         Let's understand the conv archeticture : {self.conv}")
+        
         x = self.conv(x)
-        return x 
-    
+        return x
 
 
 
@@ -210,12 +331,13 @@ class CausalGroupNorm(nn.GroupNorm):
 if __name__ == "__main__":
 
     # causasl_conv_3d = CausalConv3d(in_channels=3,
-    #                                out_channels=3,
+    #                                out_channels=4,
     #                                kernel_size=3,
     #                                stride=1)
     # # print(causasl_conv_3d)
 
-    # x = torch.randn(2, 3, 8, 64, 64)
+    # # x = torch.randn(2, 3, 8, 64, 64)
+    # x = torch.randn(2, 3, 16, 256, 256)
     # output = causasl_conv_3d(x)
     # print(output.shape)
 

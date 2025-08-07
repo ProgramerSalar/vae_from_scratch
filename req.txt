@@ -1,8 +1,8 @@
 jsonlines
-transformers==4.39.3
+transformers== 4.55.0
 timm
 piq
-accelerate==0.30.0
+accelerate==1.9.0
 git clone https://github.com/NVIDIA/apex
 cd apex
 pip install -v --disable-pip-version-check --no-build-isolation --no-cache-dir ./
