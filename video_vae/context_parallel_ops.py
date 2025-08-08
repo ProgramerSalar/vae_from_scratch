@@ -255,3 +255,38 @@ def conv_gather_from_context_parallel_region(input_,
                                                              dim,
                                                              kernel_size)
 
+# -----------------------------------------
+
+class _ConvolutionScatterToContextParallelRegion(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx,
+                input_,
+                dim,
+                kernel_size):
+        
+        ctx.dim = dim 
+        ctx.kernel_size = kernel_size
+
+        return _conv_split(input_=input_,
+                           dim=dim,
+                           kernel_size=kernel_size)
+    
+
+    @staticmethod
+    def backward(ctx, grad_outputs):
+        return _conv_gather(input_=grad_outputs,
+                            dim=ctx.dim,
+                            kernel_size=ctx.kernel_size), None, None
+    
+
+    
+
+
+
+def conv_scatter_to_context_parallel_region(input_, 
+                                            dim,
+                                            kernel_size):
+    
+    return _ConvolutionScatterToContextParallelRegion.apply(input_, dim, kernel_size)
+
