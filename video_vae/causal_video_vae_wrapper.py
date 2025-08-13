@@ -15,7 +15,7 @@ from utils import (is_context_parallel_intialized,
 
 from .context_parallel_ops import conv_scatter_to_context_parallel_region
 
-class CausalVideoVAEWrapper(nn.Module):
+class CausalVideoVAELossWrapper(nn.Module):
 
     """ 
     The causal video vae training and inference running wrapper
