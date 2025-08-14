@@ -3,23 +3,40 @@ import argparse
 import numpy as np
 import random
 import torch.backends.cudnn as cudnn
+import time 
+import os, json, datetime
+from pathlib import Path
 
 
+import sys
 
 
-
+# --- Add project root to sys.path ---
+current_dir = Path(__file__).resolve().parent  # /tools directory
+project_root = current_dir.parent  # Project root (parent of /tools)
+sys.path.append(str(project_root))
+# -----------------------------------
 
 from video_vae.causal_video_vae_wrapper import CausalVideoVAELossWrapper
 from dataset.dataset_cls import VideoDataset, ImageDataset
 from dataset.dataloaders import create_mixed_datalaoders
 from trainer_misc.utils import (
-    init_distributed_mode
+    init_distributed_mode,
+    create_optimizer,
+    NativeScalerWithGradNormCount,
+    cosine_scheduler,
+    auto_load_model,
+    save_model,
+    is_main_process
 )
+from trainer_misc.vae_ddp_trainer import train_one_epoch
 
 from utils import (
     initialize_context_parallel,
     get_rank,
-    get_world_size
+    get_world_size,
+    
+    
 )
 
 
@@ -234,9 +251,128 @@ def main(args):
     print(f'total number of fixed params in : {n_fix_parameters / 1e6} M')
 
     total_batch_size = args.batch_size * get_world_size()
+    print(f"LR = {args.lr}.8f")
+    print(f"Min LR = {args.min_lr}.8f")
+    print(f"Weight Decay = {args.weight_decay}.8f")
+    print(f"Batch size = {total_batch_size}")
+    print(f"Number of training steps = {(num_training_steps_per_epoch * args.epochs)}")
+    print(f"Number of training examples per epoch = {total_batch_size * num_training_steps_per_epoch}")
+
+    optimizer = create_optimizer(args=args,
+                                 model=model_without_ddp.vae)
+    optimizer_disc = create_optimizer(args=args,
+                                      model=model_without_ddp.loss.discriminator) if args.add_discriminator else None
+
+    loss_scaler = NativeScalerWithGradNormCount(enabled=True if args.model_dtype == 'fp16' else False)
+    loss_scaler_disc = NativeScalerWithGradNormCount(enabled=True if args.model_dtype == 'fp16' else False) if args.add_discriminator else None
 
 
+    if args.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(module=model,
+                                                          device_ids=[args.gpu],
+                                                          find_unused_parameters=False)
+        model_without_ddp = model.module
+
+    print("Use step level LR & WD scheduler!")
+
+    lr_schedule_values = cosine_scheduler(
+        base_value=args.lr,
+        final_value=args.min_lr,
+        epochs=args.epochs,
+        niter_per_ep=num_training_steps_per_epoch,
+        warmup_epochs=args.warmup_epochs,
+        warmup_steps=args.warmup_steps
+    )
+
+    lr_schedule_values_disc = cosine_scheduler(
+        base_value=args.lr_disc,
+        final_value=args.min_lr,
+        epochs=args.epochs,
+        niter_per_ep=num_training_steps_per_epoch,
+        warmup_epochs=args.warmup_epochs,
+        warmup_steps=args.warmup_steps
+    ) if args.add_discriminator else None
+
+
+    auto_load_model(
+        args=args,
+        model=model,
+        model_without_ddp=model_without_ddp,
+        optimizer=optimizer,
+        loss_scaler=loss_scaler,
+        optimizer_disc=optimizer_disc
+    )
+    print(f"Start training for {args.epochs} epochs, the global iteration is {args.global_step}")
+    start_time = time.time()
+    torch.distributed.barrier()
+
+
+    for epoch in range(args.start_epoch,
+                       args.epochs):
         
+        train_stats = train_one_epoch(
+            model=model,
+            model_dtype=args.model_dtype,
+            data_loader=data_loader_train,
+            optimizer=optimizer,
+            optimizer_disc=optimizer_disc,
+            device=device,
+            epoch=epoch,
+            loss_scaler=loss_scaler,
+            loss_scaler_disc=loss_scaler_disc,
+            clip_grad=args.clip_grad,
+            log_writer=log_writer,
+            start_steps=epoch * num_training_steps_per_epoch,
+            lr_schedule_values=lr_schedule_values,
+            lr_schedule_values_disc=lr_schedule_values_disc,
+            args=args,
+            print_freq=args.print_freq,
+            iters_per_epoch=num_training_steps_per_epoch
+        )
+
+        if args.output_dir:
+            if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
+                save_model(
+                    args=args,
+                    model=model,
+                    model_without_ddp=model_without_ddp,
+                    optimizer=optimizer,
+                    loss_scaler=loss_scaler,
+                    epoch=epoch,
+                    save_ckpt_freq=args.save_ckpt_freq,
+                    optimizer_disc=optimizer_disc
+                )
+
+        log_stats = {
+            **{f'train_{k}': v for k, v in train_stats.items()},
+            'epoch': epoch, 
+            'n_parameters': n_learnable_parameters
+        }
+
+        if args.output_dir and is_main_process():
+            if log_writer is not None:
+                log_writer.flush()
+
+            with open(os.path.join(args.output_dir, 'log.txt'),
+                      mode='a',
+                      encoding='utf-8') as f:
+                f.write(json.dumps(log_stats) + "\n")
+
+
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+
+    print(f"Training time {total_time_str}")
+
+
+
+if __name__ == "__main__":
+    opts = get_args()
+    if opts.output_dir:
+        Path(opts.output_dir).mkdir(parents=True, exist_ok=True)
+    main(opts)
+
+
     
 
 
