@@ -33,7 +33,12 @@ class CausalVideoVAELossWrapper(nn.Module):
         else:
             torch_dtype = torch.float32
 
+        print(f"what is the model_path: {model_path}")
+
+
+        # so the weight path of vae 
         self.vae = CausalVideoVAE.from_pretrained(model_path, torch_dtype=torch_dtype, interpolate=False)
+        print(f"what is the output to get vae: {self.vae}")
         self.vae_scale_factor = self.vae.config.scaling_factor
 
         if freeze_encoder:

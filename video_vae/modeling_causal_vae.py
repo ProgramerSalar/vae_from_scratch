@@ -358,6 +358,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
     
     @torch.no_grad()
     def chunk_decode(self, z: torch.FloatTensor, window_size=2):
+        
         num_frames = z.shape[2]
         init_window_size = window_size + 1
         frame_list = [z[:,:,:init_window_size]]
@@ -549,6 +550,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
                 Whether or not to return a [`DecoderOutput`] instead of a plain tuple.
         """
         x = sample
+        # print(f"Let's testing this forward are worked or not: {x.shape}")
 
         if is_context_parallel_intialized():
             assert self.training, "Only supports during training now"
