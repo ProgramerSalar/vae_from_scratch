@@ -6,9 +6,9 @@
 # Stage-2: pure video training, using context parallel to load video with more video frames (up to 257 frames)
 
 GPUS=1  # The gpu number
-VAE_MODEL_PATH=NEW_PATH/vae_ckpt   # The vae model dir
+VAE_MODEL_PATH=PATH/vae_ckpt   # The vae model dir
 LPIPS_CKPT=PATH/pyramid-flow-miniflux/lpips/vgg_lpips.pth   # The LPIPS VGG CKPT path, used for calculating the lpips loss
-OUTPUT_DIR=/NEW_PATH/output_dir    # The checkpoint saving dir
+OUTPUT_DIR=PATH/output_dir    # The checkpoint saving dir
 IMAGE_ANNO=annotation/image_text.jsonl   # The image annotation file path
 VIDEO_ANNO=annotation/video_text.jsonl   # The video annotation file path
 RESOLUTION=256     # The training resolution, default is 256
