@@ -19,7 +19,7 @@ sys.path.append(str(project_root))
 
 from video_vae.causal_video_vae_wrapper import CausalVideoVAELossWrapper
 from dataset.dataset_cls import VideoDataset, ImageDataset
-from dataset.dataloaders import create_mixed_datalaoders
+from dataset.dataloaders import create_mixed_dataloaders
 from trainer_misc.utils import (
     init_distributed_mode,
     create_optimizer,
@@ -200,7 +200,8 @@ def main(args):
     model = build_model(args)
     
     world_size = get_world_size()
-    global_rank = get_rank()
+    # global_rank = get_rank()
+    global_rank = 0
 
     num_training_steps_per_epoch = args.iters_per_epoch
     log_writer = None
@@ -220,8 +221,10 @@ def main(args):
     else:
         training_dataset = ImageDataset(args.image_anno, resolution=args.resolution, 
             max_frames=args.max_frames // 4, add_normalize=not args.not_add_normalize)
+        
+    print(f"what is the global rank i am getting: {global_rank}")
 
-    data_loader_train = create_mixed_datalaoders(
+    data_loader_train = create_mixed_dataloaders(
         training_dataset,
         batch_size=args.batch_size, 
         num_workers=args.num_workers,

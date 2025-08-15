@@ -6,7 +6,8 @@
 # Stage-2: pure video training, using context parallel to load video with more video frames (up to 257 frames)
 
 GPUS=1  # The gpu number
-VAE_MODEL_PATH=PATH/vae_ckpt   # The vae model dir
+# VAE_MODEL_PATH=PATH/vae_ckpt   # The vae model dir
+VAE_MODEL_PATH=PATH/pyramid-flow-miniflux/causal_video_vae   # The vae model dir
 LPIPS_CKPT=PATH/pyramid-flow-miniflux/lpips/vgg_lpips.pth   # The LPIPS VGG CKPT path, used for calculating the lpips loss
 OUTPUT_DIR=PATH/output_dir    # The checkpoint saving dir
 IMAGE_ANNO=annotation/image_text.jsonl   # The image annotation file path
@@ -48,3 +49,4 @@ torchrun --nproc_per_node $GPUS \
     --iters_per_epoch 2000 \
     --print_freq 40 \
     --save_ckpt_freq 1
+    
