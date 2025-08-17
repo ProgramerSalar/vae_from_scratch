@@ -3,7 +3,13 @@ from torch import nn
 from typing import Union, Tuple
 from collections import deque
 
-
+from vae_utils.context_parallel import (
+    is_context_parallel_initialized,
+    get_context_parallel_rank,
+    cp_pass_from_previous_rank
+)
+# from torchrl.modules import TruncatedNormal
+from timm.layers.weight_init import trunc_normal_
 
 
 class CausalConv3d(nn.Module):
@@ -18,6 +24,16 @@ class CausalConv3d(nn.Module):
             **kwargs
     ):
         
+        """
+            This conv is based on this paper: https://arxiv.org/pdf/1412.0767
+
+            Args:
+                in_channels (int): input channels of the data 
+                out_channels (int): output channels of the data 
+                kernel_size (int, tuple): size of the kernel like: (3, 3, 3)
+                stride (int, tuple): size of the stride like: (1, 1, 1)
+                dilation (int): what is the dilation of the kernel default is `1`
+        """
 
         
         super().__init__()
@@ -60,9 +76,107 @@ class CausalConv3d(nn.Module):
         self.cache_front_feat = deque()
 
 
+    def context_parallel_initialized(self, x):
+
+        # how many gpu work in pair wise
+        cp_rank = get_context_parallel_rank()
+
+        if self.time_kernel_size == 3 and \
+            ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
+
+            x = cp_pass_from_previous_rank(input_=x,
+                                           dim=2,
+                                           kernel_size=2)
+            trans_x = cp_pass_from_previous_rank(input_=x[:, :, :-1],
+                                                 dim=2,
+                                                 kernel_size=2)
+            x = torch.cat([trans_x, x[:, :, -1:]], dim=2)
+
+        else:
+            
+            x = cp_pass_from_previous_rank(input_=x,
+                                           dim=2,
+                                           kernel_size=self.time_kernel_size)
+            
+        x = torch.nn.functional.pad(input=x,
+                                    pad=self.time_uncausal_padding,
+                                    mode='constant')
+        
+        if cp_rank != 0:
+            if self.temporal_stride == 2 and self.time_kernel_size == 3:
+                x = x[:, :, 1:]
+
+        x = self.conv(x)
+        return x 
+
+
+
+    def _clear_context_parallel_cache(self):
+        del self.cache_front_feat
+        self.cache_front_feat = deque()
+
+
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+            trunc_normal_(m.weight, std=.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
+
+            
+
+
 
     def forward(self, 
-                x):
+                x,
+                is_init_image=True,
+                temporal_chunk=False):
+        
+
+        if is_context_parallel_initialized():
+            return self.context_parallel_initialized(x)
+        
+        pad_mode = self.pad_mode if self.time_pad < x.shape[2] else 'constant'
+
+        if not temporal_chunk:
+            x = torch.nn.functional.pad(input=x,
+                                        pad=self.time_causal_padding,
+                                        mode=pad_mode)
+            
+        else:
+            assert not self.training, "The feature cache should not be used in training."
+            
+            if is_init_image:
+                # Encode the first chunk 
+                x = torch.nn.functional.pad(input=x,
+                                            pad=self.time_causal_padding,
+                                            mode=pad_mode)
+                self._clear_context_parallel_cache()
+                self.cache_front_feat.append(x[:, :, -2].clone().detach())
+
+            else:
+                x = torch.nn.functional.pad(input=x,
+                                            pad=self.time_uncausal_padding,
+                                            mode=pad_mode)
+                video_front_context = self.cache_front_feat.pop()
+                self._clear_context_parallel_cache()
+
+
+                if self.temporal_stride == 1 and self.time_kernel_size == 3:
+                    x = torch.cat([video_front_context, x], dim=2)
+
+                elif self.temporal_stride == 2 and self.time_kernel_size == 3:
+                    x = torch.cat([video_front_context[:, :, -1:], x], dim=2)
+
+                
+                self.cache_front_feat.append(x[:, :, -2:].clone().detach())
+
+
+
         
 
         ### calculation of input -> output  ### 
