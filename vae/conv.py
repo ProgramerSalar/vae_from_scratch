@@ -2,7 +2,7 @@ import torch
 from torch import nn 
 from typing import Union, Tuple
 from collections import deque
-
+from torch import Tensor
 from vae_utils.context_parallel import (
     is_context_parallel_initialized,
     get_context_parallel_rank,
@@ -10,6 +10,10 @@ from vae_utils.context_parallel import (
 )
 # from torchrl.modules import TruncatedNormal
 from timm.layers.weight_init import trunc_normal_
+from einops import rearrange
+
+
+
 
 
 class CausalConv3d(nn.Module):
@@ -25,7 +29,7 @@ class CausalConv3d(nn.Module):
     ):
         
         """
-            This conv is based on this paper: https://arxiv.org/pdf/1412.0767
+            This conv is based on this paper: https://arxiv.org/pdf/1412.0767, (in this paper has show how the conv3d is better from other method)
 
             Args:
                 in_channels (int): input channels of the data 
@@ -189,7 +193,26 @@ class CausalConv3d(nn.Module):
     
 
 
+
+class CausalGroupNorm(nn.GroupNorm):
+
+    def forward(self, 
+                x: Tensor) -> Tensor:
+        
+        t = x.shape[2]
+        x = rearrange(tensor=x,
+                      pattern='b c t h w -> (b t) c h w')
+        
+        x = super().forward(x)
+        x = rearrange(tensor=x,
+                      pattern='(b t) c h w -> b c t h w', 
+                      t=t)
+        
+        return x 
     
+
+    
+
 
 
 

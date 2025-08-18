@@ -1,9 +1,9 @@
 import torch 
 import torch.distributed as dist
 
-_CONTEXT_PARALLEL_GROUP = 2     # init `None`
+_CONTEXT_PARALLEL_GROUP = None    # init `None`
 # This variable stores a number (an integer) that dictates how many GPUs will work together to process a single long input sequence (or "context").
-_CONTEXT_PARALLEL_SIZE = 2  # init `None`
+_CONTEXT_PARALLEL_SIZE = None # init `None`
 
 # the context=2 (group of GPU) so means => (2 GPU per group)
 # how many context are initialized to parallelly
