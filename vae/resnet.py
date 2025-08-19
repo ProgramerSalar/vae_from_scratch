@@ -3,14 +3,12 @@ from torch import nn
 from typing import Optional
 from einops import rearrange
 
-from diffusers.models.normalization import AdaGroupNorm
-from .utils import SpatialNorm, get_activation
+
+from .utils import SpatialNorm, get_activation, AdaGroupNorm
 from .conv import CausalGroupNorm, CausalConv3d
 
 
-""" 
-    so, if you want to learn the resnet paper: https://arxiv.org/pdf/1512.03385
-"""
+
 
 class CausalResnetBlock3D(nn.Module):
 
@@ -26,8 +24,8 @@ class CausalResnetBlock3D(nn.Module):
                 groups_out: Optional[int] = None,
                 pre_norm: bool = True,
                 eps: float = 1e-6,
-                non_linearity: str = "swish",
-                time_embedding_norm: str = "default",
+                non_linearity: str = "swish",   # activation function 
+                time_embedding_norm: str = "default",   
                 output_scale_factor: float = 1.0,
                 use_in_shortcut: Optional[bool] = None,
                 conv_shortcut_bias: bool = True,
@@ -47,6 +45,8 @@ class CausalResnetBlock3D(nn.Module):
 
         if groups_out is None:
             groups_out = groups
+
+        print(f"what is embedding_dim: {temb_channels}, out_dim: {in_channels}, num_groups: {groups}")
 
         if self.time_embedding_norm == "ada_group":
             self.norm1 = AdaGroupNorm(embedding_dim=temb_channels,
@@ -118,6 +118,7 @@ class CausalResnetBlock3D(nn.Module):
         
 
         hidden_states = input_tensor
+        print(f"what is the hidden_states: {hidden_states.shape} and temb: {temb.shape}")
 
         # passing the data in normalization [1st-step]
         if self.time_embedding_norm == "ada_group" or  self.time_embedding_norm == "spatial":
@@ -387,7 +388,9 @@ if __name__ == "__main__":
 
     causal_resnet_block_3d = CausalResnetBlock3D(in_channels=8,
                                                  out_channels=8,
-                                                 groups=2)
+                                                 groups=2,
+                                                #  time_embedding_norm="spatial"
+                                                 )
     
 
 
