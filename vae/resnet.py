@@ -1,7 +1,7 @@
 import torch 
 from torch import nn 
 from typing import Optional
-from einops import rearrange
+from einops import rearrange, repeat, reduce
 
 
 from .utils import SpatialNorm, get_activation, AdaGroupNorm
@@ -118,11 +118,22 @@ class CausalResnetBlock3D(nn.Module):
         
 
         hidden_states = input_tensor
-        print(f"what is the hidden_states: {hidden_states.shape} and temb: {temb.shape}")
+        
+        batch_size, channels, frame, height, width = hidden_states.shape
+        print(f"so this the shape of frame: {frame}")
 
         # passing the data in normalization [1st-step]
-        if self.time_embedding_norm == "ada_group" or  self.time_embedding_norm == "spatial":
+        if self.time_embedding_norm == "ada_group":
+        
+            hidden_states = rearrange(hidden_states, 'b c f h w -> (b f) c h w')
+            temb = repeat(temb, 'b c -> (b f) c', f=frame)
             hidden_states = self.norm1(hidden_states, temb)
+            hidden_states = rearrange(hidden_states, '(b f) c h w -> b c f h w',  f=frame)
+            temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
+           
+        elif self.time_embedding_norm == "spatial":
+            pass 
+
 
         else:
             hidden_states = self.norm1(hidden_states)
@@ -138,8 +149,16 @@ class CausalResnetBlock3D(nn.Module):
         if temb is not None and self.time_embedding_norm == "default":
             hidden_states = hidden_states + temb
 
-        elif self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
+        elif self.time_embedding_norm == "spatial":
             hidden_states = self.norm2(hidden_states, temb)
+
+        elif self.time_embedding_norm == "ada_group":
+        
+            hidden_states = rearrange(hidden_states, 'b c f h w -> (b f) c h w')
+            temb = repeat(temb, 'b c -> (b f) c', f=frame)
+            hidden_states = self.norm2(hidden_states, temb)
+            hidden_states = rearrange(hidden_states, '(b f) c h w -> b c f h w',  f=frame)
+            temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
 
         else:
             hidden_states = self.norm2(hidden_states)
@@ -386,16 +405,26 @@ class CausalTemporalUpsample2x(nn.Module):
 
 if __name__ == "__main__":
 
-    causal_resnet_block_3d = CausalResnetBlock3D(in_channels=8,
-                                                 out_channels=8,
-                                                 groups=2,
-                                                #  time_embedding_norm="spatial"
+    in_channels = 64
+    out_channels = 64
+    batch_size = 2 
+    time_embedding_norm = "ada_group"
+    temb_channels = 128
+    frame = 64
+    height, width = 64, 64
+
+    causal_resnet_block_3d = CausalResnetBlock3D(in_channels=in_channels,
+                                                 out_channels=out_channels,
+                                                 groups=batch_size,
+                                                 time_embedding_norm=time_embedding_norm,
+                                                 temb_channels=temb_channels
                                                  )
     
+    
+    print(causal_resnet_block_3d)
 
-
-    x = torch.randn(2, 8, 8, 64, 64)
-    temb = torch.randn(2, 8, 1, 1, 1)
+    x = torch.randn(batch_size, in_channels, frame, height, width)
+    temb = torch.randn(batch_size, temb_channels)
 
     output = causal_resnet_block_3d(x, temb)
     print(output.shape)

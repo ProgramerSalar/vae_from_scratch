@@ -30,6 +30,7 @@ class CausalConv3d(nn.Module):
         
         """
             This conv is based on this paper: https://arxiv.org/pdf/1412.0767, (in this paper has show how the conv3d is better from other method)
+            second Paper: https://arxiv.org/pdf/1505.02890
 
             Args:
                 in_channels (int): input channels of the data 
