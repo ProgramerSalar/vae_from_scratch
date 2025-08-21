@@ -46,7 +46,7 @@ class CausalResnetBlock3D(nn.Module):
         if groups_out is None:
             groups_out = groups
 
-        print(f"what is embedding_dim: {temb_channels}, out_dim: {in_channels}, num_groups: {groups}")
+        
 
         if self.time_embedding_norm == "ada_group":
             self.norm1 = AdaGroupNorm(embedding_dim=temb_channels,
@@ -120,11 +120,9 @@ class CausalResnetBlock3D(nn.Module):
         hidden_states = input_tensor
         
         batch_size, channels, frame, height, width = hidden_states.shape
-        print(f"so this the shape of frame: {frame}")
-
+        
         # passing the data in normalization [1st-step]
         if self.time_embedding_norm == "ada_group":
-        
             hidden_states = rearrange(hidden_states, 'b c f h w -> (b f) c h w')
             temb = repeat(temb, 'b c -> (b f) c', f=frame)
             hidden_states = self.norm1(hidden_states, temb)
@@ -132,6 +130,7 @@ class CausalResnetBlock3D(nn.Module):
             temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
            
         elif self.time_embedding_norm == "spatial":
+            # so this option is [RESUME] becuase to ask the quantized data
             pass 
 
 
@@ -147,10 +146,12 @@ class CausalResnetBlock3D(nn.Module):
         
         # passing the data in normalization [2nd-step]
         if temb is not None and self.time_embedding_norm == "default":
+            temb = temb[:, :, None, None, None]
             hidden_states = hidden_states + temb
 
         elif self.time_embedding_norm == "spatial":
-            hidden_states = self.norm2(hidden_states, temb)
+            # so this option is [RESUME] becuase to ask the quantized data
+            pass
 
         elif self.time_embedding_norm == "ada_group":
         
@@ -409,7 +410,7 @@ if __name__ == "__main__":
     out_channels = 64
     batch_size = 2 
     time_embedding_norm = "ada_group"
-    temb_channels = 128
+    temb_channels = 64  # 128
     frame = 64
     height, width = 64, 64
 
@@ -423,11 +424,14 @@ if __name__ == "__main__":
     
     print(causal_resnet_block_3d)
 
-    x = torch.randn(batch_size, in_channels, frame, height, width)
-    temb = torch.randn(batch_size, temb_channels)
+    x = torch.randn(batch_size, in_channels, frame, height, width)  
+    # make sure temb_channels is multiple of in_channels 
+    temb = torch.randn(batch_size, in_channels) 
 
     output = causal_resnet_block_3d(x, temb)
     print(output.shape)
+    # --------------------------------------------------------------------------------
+   
     
 
 
