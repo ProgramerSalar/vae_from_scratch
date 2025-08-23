@@ -1,7 +1,7 @@
 import torch 
 from torch import nn 
 from torch.nn import functional as F
-from typing import Optional
+from typing import Optional, Union, Tuple, List
 
 
 
@@ -104,3 +104,5 @@ class AdaGroupNorm(nn.Module):
         x = F.group_norm(x, self.num_groups, eps=self.eps)
         x = x * (1 + scale) + shift
         return x
+    
+

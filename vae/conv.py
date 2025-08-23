@@ -16,7 +16,7 @@ from einops import rearrange
 
 
 
-class CausalConv3d(nn.Module):
+class vae_Conv3d(nn.Module):
 
     def __init__(
             self,
@@ -80,7 +80,7 @@ class CausalConv3d(nn.Module):
         
         self.cache_front_feat = deque()
 
-
+    # this condition is worked when you have more than 1 GPU
     def context_parallel_initialized(self, x):
 
         # how many gpu work in pair wise
@@ -195,7 +195,7 @@ class CausalConv3d(nn.Module):
 
 
 
-class CausalGroupNorm(nn.GroupNorm):
+class vae_GroupNorm(nn.GroupNorm):
 
     def forward(self, 
                 x: Tensor) -> Tensor:
@@ -218,7 +218,7 @@ class CausalGroupNorm(nn.GroupNorm):
 
 
 if __name__ == "__main__":
-    causal_conv3d = CausalConv3d(in_channels=3,
+    causal_conv3d = vae_Conv3d(in_channels=3,
                                  out_channel=3,
                                  kernel_size=3,
                                  stride=1,

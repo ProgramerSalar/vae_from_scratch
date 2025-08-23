@@ -1,71 +1,80 @@
 import torch 
 from torch import nn 
-from typing import Optional
+from typing import Optional, Union, Literal
 from einops import rearrange, repeat, reduce
 
-
 from .utils import SpatialNorm, get_activation, AdaGroupNorm
-from .conv import CausalGroupNorm, CausalConv3d
+from .conv import vae_Conv3d
 
 
 
 
-class CausalResnetBlock3D(nn.Module):
+class vae_Block3D(nn.Module):
+
+
+    """
+    The conv3d block 
+
+    Args:
+        in_channel (`int`): input channels 
+        out_channel (`int`): output channels 
+        dropout (`float`): Dropout (default: `0.0`)
+        temb_channels (`int`): time embedding channels (default: `512`)
+        groups  (`int`): Batch size (default: `32`)
+        groups_out  (`int`): same as groups (default: `None`)
+        pre_norm  (`bool`): Initial normalization to conv layer (default: `True`)
+        eps  (`float`): Exceptional Point (default: `1e-6`)
+        non_linerity  (`str`): this is activation function (default: `"swish"` -> silu)
+            Option [`"swish"`, `"silu"`, `"mish"`, `"gelu"`, `"relu"`]
+        time_embedding_norm: this is the normalization (default: `"default"` -> GroupNorm)
+            Option [`"ada_group"`, `"default"`]
+        output_scale_factor (`1.0`): this is the scale factor to divide the output tensor (default: `1.0`)
+    """
 
 
     def __init__(self,
                 *,
                 in_channels: int,
                 out_channels: Optional[int] = None,
-                conv_shortcut: bool = False,
                 dropout: float = 0.0,
                 temb_channels: int = 512,
                 groups: int = 32,
                 groups_out: Optional[int] = None,
                 pre_norm: bool = True,
                 eps: float = 1e-6,
-                non_linearity: str = "swish",   # activation function 
-                time_embedding_norm: str = "default",   
+                non_linearity: Literal["swish", "silu", "mish", "gelu", "relu"] = "swish",   # activation function 
+                time_embedding_norm: Literal["ada_group", "default"] = "default",   
                 output_scale_factor: float = 1.0,
-                use_in_shortcut: Optional[bool] = None,
-                conv_shortcut_bias: bool = True,
-                conv_2d_out_channels: Optional[int] = None   
                 ):
         
         
         super().__init__()
-        self.pre_norm = pre_norm
-        self.pre_norm = True
+        
 
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
-        self.use_conv_shortcut = conv_shortcut
-        self.output_scale_factor = output_scale_factor
         self.time_embedding_norm = time_embedding_norm
+        self.output_scale_factor = output_scale_factor
 
         if groups_out is None:
             groups_out = groups
 
-        
-
-        if self.time_embedding_norm == "ada_group":
-            self.norm1 = AdaGroupNorm(embedding_dim=temb_channels,
-                                      out_dim=in_channels,
-                                      num_groups=groups,
-                                      eps=eps)
-            
-        elif self.time_embedding_norm == "spatial":
-            self.norm1 = SpatialNorm(f_channels=in_channels,
-                                     zq_channels=temb_channels)
-            
-        else:
-            self.norm1 = torch.nn.GroupNorm(num_groups=groups,
+        self.pre_norm = pre_norm
+        if self.pre_norm:
+            if self.time_embedding_norm == "ada_group":
+                self.norm1 = AdaGroupNorm(embedding_dim=temb_channels,
+                                        out_dim=in_channels,
+                                        num_groups=groups,
+                                        eps=eps)
+                
+            else:
+                self.norm1 = torch.nn.GroupNorm(num_groups=groups,
                                             num_channels=in_channels,
                                             eps=eps,
                                             affine=True)
             
 
-        self.conv1 = CausalConv3d(in_channels=in_channels,
+        self.conv1 = vae_Conv3d(in_channels=in_channels,
                                   out_channel=out_channels,
                                   kernel_size=3,
                                   stride=1)
@@ -77,9 +86,6 @@ class CausalResnetBlock3D(nn.Module):
                                       num_groups=groups_out,
                                       eps=eps)
             
-        elif self.time_embedding_norm == "spatial":
-            self.norm2 = SpatialNorm(f_channels=out_channels,
-                                     zq_channels=temb_channels)
             
         else:
             self.norm2 = torch.nn.GroupNorm(num_groups=groups_out,
@@ -89,9 +95,8 @@ class CausalResnetBlock3D(nn.Module):
             
         
         self.dropout = torch.nn.Dropout(dropout)
-        conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = CausalConv3d(in_channels=out_channels,
-                                  out_channel=conv_2d_out_channels,     # out_channels
+        self.conv2 = vae_Conv3d(in_channels=out_channels,
+                                  out_channel=out_channels,     # out_channels
                                   kernel_size=3,
                                   stride=1
                                   )
@@ -99,15 +104,7 @@ class CausalResnetBlock3D(nn.Module):
 
         self.nonlinearity = get_activation(act_fn=non_linearity)
         self.upsample = self.downsample = None
-        self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
-
-        self.conv_shortcut = None
-        if self.use_in_shortcut:
-            self.conv_shortcut = CausalConv3d(in_channels=in_channels,
-                                              out_channel=conv_2d_out_channels,
-                                              kernel_size=1,
-                                              stride=1,
-                                              bias=conv_shortcut_bias)
+        
             
         
     def forward(self,
@@ -128,11 +125,6 @@ class CausalResnetBlock3D(nn.Module):
             hidden_states = self.norm1(hidden_states, temb)
             hidden_states = rearrange(hidden_states, '(b f) c h w -> b c f h w',  f=frame)
             temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
-           
-        elif self.time_embedding_norm == "spatial":
-            # so this option is [RESUME] becuase to ask the quantized data
-            pass 
-
 
         else:
             hidden_states = self.norm1(hidden_states)
@@ -149,12 +141,7 @@ class CausalResnetBlock3D(nn.Module):
             temb = temb[:, :, None, None, None]
             hidden_states = hidden_states + temb
 
-        elif self.time_embedding_norm == "spatial":
-            # so this option is [RESUME] becuase to ask the quantized data
-            pass
-
         elif self.time_embedding_norm == "ada_group":
-        
             hidden_states = rearrange(hidden_states, 'b c f h w -> (b f) c h w')
             temb = repeat(temb, 'b c -> (b f) c', f=frame)
             hidden_states = self.norm2(hidden_states, temb)
@@ -175,12 +162,7 @@ class CausalResnetBlock3D(nn.Module):
                                    is_init_image,
                                    temporal_chunk)
         
-        # the `conv_shortcut` is True
-        if self.conv_shortcut is not None:
-            input_tensor = self.conv_shortcut(input_tensor,
-                                              is_init_image,
-                                              temporal_chunk)
-            
+        
         # so this the residual connection 
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
@@ -190,27 +172,34 @@ class CausalResnetBlock3D(nn.Module):
 
 
 
-class CausalDownsample2x(nn.Module):
+class vae_Downsample(nn.Module):
+
+    """ 
+    The downsample conv.
+
+    Args:
+        channels (`int`): input channels 
+        use_conv (`bool`): use to conv (default: `True`)
+        out_channels (`int`): output channels (default: `None`)
+    """
 
     def __init__(
             self,
             channels: int,
             use_conv: bool = True,
             out_channels: Optional[int] = None,
-            name: str = "conv",
             kernel_size = 3, 
             bias=True
     ):
         
         super().__init__()
         self.channels = channels
-        self.out_channels = out_channels or channels
+        self.out_channels = out_channels or self.channels
         self.use_conv = use_conv
         stride = (1, 2, 2)
-        self.name = name 
 
         if use_conv:
-            conv = CausalConv3d(
+            conv = vae_Conv3d(
                 in_channels=self.channels,
                 out_channel=self.out_channels,
                 kernel_size=kernel_size,
@@ -242,7 +231,17 @@ class CausalDownsample2x(nn.Module):
         return hidden_states
     
 
-class CausalTemporalDownsample2x(nn.Module):
+class vae_TemporalDownsample(nn.Module):
+
+    """ 
+    The temporal Downsample conv. 
+
+    Args:
+        channels (`int`): input channels 
+        use_conv (`bool`): use to convolution (default: `False`)
+        out_channels (`int`): output channels (default: `None`)
+        padding (`int`): padding (default: `0`)
+    """
 
 
     def __init__(
@@ -264,7 +263,7 @@ class CausalTemporalDownsample2x(nn.Module):
         stride = (2, 1, 1)
 
         if use_conv:
-            self.conv = CausalConv3d(in_channels=self.channels,
+            self.conv = vae_Conv3d(in_channels=self.channels,
                                      out_channel=self.out_channels,
                                      kernel_size=kernel_size,
                                      stride=stride,
@@ -303,14 +302,23 @@ class CausalTemporalDownsample2x(nn.Module):
     
 
 
-class CausalUpsample2x(nn.Module):
+class vae_Upsample(nn.Module):
+
+    """ 
+    This is Upsample conv.
+
+    Args:
+        channels (`int`): input channels 
+        use_conv (`bool`): conv to use (default: `False`)
+        out_channels (`int`): output channels (default: `None`)
+        
+    """
 
     def __init__(self,
                  channels: int,
                  use_conv: bool = False,
                  out_channels: Optional[int] = None,
-                 name: str = "conv",
-                 kernel_size: Optional[int] = 3,
+                 kernel_size = 3,
                  bias = True,
                  interpolate=False):
         
@@ -318,13 +326,12 @@ class CausalUpsample2x(nn.Module):
         self.channels = channels
         self.out_channels = out_channels or channels
         self.use_conv = use_conv
-        self.name = name 
         self.interploate = interpolate
         
         if interpolate:
             raise NotImplementedError("please does not do `interploate=True`")
         else:
-            self.conv = CausalConv3d(in_channels=channels,
+            self.conv = vae_Conv3d(in_channels=channels,
                                 out_channel=self.out_channels * 4,
                                 kernel_size=kernel_size,
                                 stride=1,
@@ -350,14 +357,23 @@ class CausalUpsample2x(nn.Module):
         return hidden_states
     
 
-class CausalTemporalUpsample2x(nn.Module):
+class vae_TemporalUpsample(nn.Module):
+
+    """ 
+    The temporal Upsample 
+
+    Args:
+        channels (`int`): input channels 
+        use_conv: (`bool`): use to conv 
+        out_channels: (`int`): output channels (default: `None`)
+
+    """
 
     def __init__(self,
                  channels: int,
                  use_conv: bool = True,
                  out_channels: Optional[int] = None,
-                 name: str = "conv",
-                 kernel_size: Optional[int] = 3,
+                 kernel_size = 3,
                  bias = True,
                  interpolate=False):
         
@@ -365,13 +381,12 @@ class CausalTemporalUpsample2x(nn.Module):
         self.channels = channels
         self.out_channels = out_channels or channels
         self.use_conv = use_conv
-        self.name = name 
         self.interploate = interpolate
         
         if interpolate:
             raise NotImplementedError("please does not do `interploate=True`")
         else:
-            self.conv = CausalConv3d(in_channels=channels,
+            self.conv = vae_Conv3d(in_channels=channels,
                                 out_channel=self.out_channels * 4,
                                 kernel_size=kernel_size,
                                 stride=1,
@@ -414,7 +429,7 @@ if __name__ == "__main__":
     frame = 64
     height, width = 64, 64
 
-    causal_resnet_block_3d = CausalResnetBlock3D(in_channels=in_channels,
+    causal_resnet_block_3d = vae_Block3D(in_channels=in_channels,
                                                  out_channels=out_channels,
                                                  groups=batch_size,
                                                  time_embedding_norm=time_embedding_norm,
