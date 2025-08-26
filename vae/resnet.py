@@ -45,6 +45,9 @@ class vae_Block3D(nn.Module):
                 non_linearity: Literal["swish", "silu", "mish", "gelu", "relu"] = "swish",   # activation function 
                 time_embedding_norm: Literal["ada_group", "default"] = "default",   
                 output_scale_factor: float = 1.0,
+                conv_2d_out_channels: int = None,
+                use_in_shortcut: bool = None,
+                conv_shortcut_bias: bool = True
                 ):
         
         
@@ -73,7 +76,7 @@ class vae_Block3D(nn.Module):
                                             eps=eps,
                                             affine=True)
             
-
+        
         self.conv1 = vae_Conv3d(in_channels=in_channels,
                                   out_channel=out_channels,
                                   kernel_size=3,
@@ -95,6 +98,7 @@ class vae_Block3D(nn.Module):
             
         
         self.dropout = torch.nn.Dropout(dropout)
+        conv_2d_out_channels = out_channels
         self.conv2 = vae_Conv3d(in_channels=out_channels,
                                   out_channel=out_channels,     # out_channels
                                   kernel_size=3,
@@ -104,6 +108,24 @@ class vae_Block3D(nn.Module):
 
         self.nonlinearity = get_activation(act_fn=non_linearity)
         self.upsample = self.downsample = None
+
+        self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        if use_in_shortcut is None:
+            # [3, 128, 8, 256, 256] != [3, 128, 8, 256, 256] => False 
+            # [3, 128, 8, 256, 256] != [3, 256, 8, 256, 256] => True 
+            self.use_in_shortcut = self.in_channels != conv_2d_out_channels
+
+        else:
+            use_in_shortcut
+
+        self.conv_shortcut = None
+        if self.use_in_shortcut:
+            # [3, 128, 8, 256, 256] -> [3, 128, 8, 256, 256]
+            self.conv_shortcut = vae_Conv3d(in_channels=in_channels,
+                                            out_channel=conv_2d_out_channels,   # this `conv_2d_out_channels` store the  previous output_channels so the `in_channels == out_channel`
+                                            kernel_size=1,
+                                            stride=1,
+                                            bias=conv_shortcut_bias)
         
             
         
@@ -112,6 +134,7 @@ class vae_Block3D(nn.Module):
                 temb: torch.FloatTensor = None,
                 is_init_image=True,
                 temporal_chunk=False) -> torch.FloatTensor:
+        
         
 
         hidden_states = input_tensor
@@ -125,16 +148,21 @@ class vae_Block3D(nn.Module):
             hidden_states = self.norm1(hidden_states, temb)
             hidden_states = rearrange(hidden_states, '(b f) c h w -> b c f h w',  f=frame)
             temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
+            pass
 
         else:
+            print(f"what is the data to get in norm: {hidden_states.shape}")
             hidden_states = self.norm1(hidden_states)
 
         # passing the data in activation function [1st-step]
         hidden_states = self.nonlinearity(hidden_states)
         # pass the data in conv [1st step]
+
         hidden_states = self.conv1(hidden_states,
-                                   is_init_image,
-                                   temporal_chunk)
+                                   is_init_image=is_init_image,
+                                   temporal_chunk=temporal_chunk)
+        
+        
         
         # passing the data in normalization [2nd-step]
         if temb is not None and self.time_embedding_norm == "default":
@@ -147,6 +175,7 @@ class vae_Block3D(nn.Module):
             hidden_states = self.norm2(hidden_states, temb)
             hidden_states = rearrange(hidden_states, '(b f) c h w -> b c f h w',  f=frame)
             temb = reduce(temb, '(b f) c -> b c', 'max', f=frame)
+            pass
 
         else:
             hidden_states = self.norm2(hidden_states)
@@ -158,12 +187,20 @@ class vae_Block3D(nn.Module):
         hidden_states = self.dropout(hidden_states)
 
         # now i apply the output using conv3d
+        # [3, 256, 256, 256] -> [3, 256, 256, 256]
         hidden_states = self.conv2(hidden_states, 
-                                   is_init_image,
-                                   temporal_chunk)
+                                   is_init_image=is_init_image,
+                                   temporal_chunk=temporal_chunk)
+        
+
+        if self.conv_shortcut is not None:
+            input_tensor = self.conv_shortcut(input_tensor,
+                                              is_init_image=is_init_image,
+                                              temporal_chunk=temporal_chunk)
         
         
         # so this the residual connection 
+        # print(f"what is the shape of input_tensor: {input_tensor.shape} and hidden_states: {hidden_states.shape}")
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
         return output_tensor
@@ -387,7 +424,7 @@ class vae_TemporalUpsample(nn.Module):
             raise NotImplementedError("please does not do `interploate=True`")
         else:
             self.conv = vae_Conv3d(in_channels=channels,
-                                out_channel=self.out_channels * 4,
+                                out_channel=self.out_channels * 2,
                                 kernel_size=kernel_size,
                                 stride=1,
                                 bias=bias)

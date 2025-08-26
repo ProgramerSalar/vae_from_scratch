@@ -42,7 +42,7 @@ class VaeEncoder(nn.Module):
         # Down 
         output_channel = block_out_channels[0]
         for i, down_block_type in enumerate(down_block_types):
-            print(i)
+            
             
             input_channel = output_channel
             output_channel = block_out_channels[i]
@@ -184,13 +184,13 @@ class VaeDecoder(nn.Module):
             output_channel = reversed_block_out_channels[i]
 
             is_final_block = i == len(block_out_channels) - 1 
-            print(f"previous_out_channel: {prev_output_channel}, output_channel: {output_channel}, dropout: {block_dropout[i]}, num_layers: {layers_per_block[i]}, groups: {norm_num_groups}")
+            
 
             up_block = vae_UpDecoder(
                 in_channels=prev_output_channel,
                 out_channels=output_channel,
                 dropout=block_dropout[i],
-                num_layers=layers_per_block[i],
+                num_layers=self.layers_per_block[i],
                 eps=1e-6,
                 time_scale_shift="default",
                 act_fn=act_fn,
@@ -243,6 +243,7 @@ class VaeDecoder(nn.Module):
 
             # up block 
             for up_block in self.up_blocks:
+                
                 sample = up_block(sample,
                                   is_init_image=is_init_image,
                                   temporal_chunk=temporal_chunk)
@@ -346,13 +347,15 @@ class DiagonalGaussianDistribution(object):
 
 if __name__ == "__main__":
 
-    # vae_encoder = VaeEncoder(norm_num_groups=2)
-    # print(vae_encoder)
+    vae_encoder = VaeEncoder(norm_num_groups=2,
+                            block_out_channels=(128, 256, 512, 512)
+                             )
+    print(vae_encoder)
 
-    # x = torch.randn(2, 3, 8, 68, 68)
+    x = torch.randn(2, 3, 8, 256, 246)
 
-    # output = vae_encoder(x)
-    # print(output.shape)
+    output = vae_encoder(x)
+    print(output.shape)
 # -----------------------------------------------------------------
 
     # x = torch.randn(2, 8, 8, 16, 16)
@@ -363,20 +366,20 @@ if __name__ == "__main__":
 
 # --------------------------------------------
 
-    tensor = torch.randn(2, 3, 8, 256, 256)
+    # tensor = torch.randn(2, 3, 8, 256, 256)
     
 
-    diagonal_gaussian_distribution = DiagonalGaussianDistribution(parameters=tensor,
-                                                                  determinstic=False)
-    # print(diagonal_gaussian_distribution)
+    # diagonal_gaussian_distribution = DiagonalGaussianDistribution(parameters=tensor,
+    #                                                               determinstic=False)
+    # # print(diagonal_gaussian_distribution)
 
-    sample = diagonal_gaussian_distribution.sample(
-        generator=torch.Generator("cpu")
-    )
-    print(sample.shape)
-    kl = diagonal_gaussian_distribution.kl()
-    # print(kl.shape)
+    # sample = diagonal_gaussian_distribution.sample(
+    #     generator=torch.Generator("cpu")
+    # )
+    # print(sample.shape)
+    # kl = diagonal_gaussian_distribution.kl()
+    # # print(kl.shape)
 
-    nll = diagonal_gaussian_distribution.nll(sample=sample,
-                                             )
-    print(nll.shape)
+    # nll = diagonal_gaussian_distribution.nll(sample=sample,
+    #                                          )
+    # print(nll.shape)

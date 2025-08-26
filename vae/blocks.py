@@ -171,10 +171,12 @@ class vae_DownEncoder(nn.Module):
                 ) -> torch.FloatTensor:
         
         for resnet in self.resnets:
+            
             hidden_states = resnet(hidden_states,
                                    temb=None,
                                    is_init_image=is_init_image,
                                    temporal_chunk=temporal_chunk)
+            
             
             
         if self.downsamplers is not None:
@@ -274,6 +276,7 @@ class vae_UpDecoder(nn.Module):
                 temporal_chunk=False) -> torch.FloatTensor:
         
         for resnet in self.resnets:
+            # print(f"checking the loop: {hidden_states.shape}")
             hidden_states = resnet(hidden_states,
                                    temb=temb,
                                    is_init_image=is_init_image,
@@ -289,7 +292,7 @@ class vae_UpDecoder(nn.Module):
                 for temporal_upsampler in self.temporal_upsampler:
                     hidden_states = temporal_upsampler(hidden_states,
                                                        is_init_image=is_init_image,
-                                                       temporal__chunk=temporal_chunk)
+                                                       temporal_chunk=temporal_chunk)
             
 
         return hidden_states
