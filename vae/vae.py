@@ -256,8 +256,8 @@ class VAE(ModelMixin, ConfigMixin):
 if __name__ == "__main__":
 
     VAE.config_name = "vae_config"
-    vae = VAE(encoder_norm_num_groups=1)
-    print(vae)
+    vae = VAE(encoder_norm_num_groups=2)
+    # print(vae)
  
     print("-" * 30)
     # x = torch.randn(2, 3, 8, 256, 256)

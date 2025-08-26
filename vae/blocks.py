@@ -200,104 +200,209 @@ class vae_DownEncoder(nn.Module):
 
     
 
+# class vae_UpDecoder(nn.Module):
+
+#     def __init__(
+#             self,
+#             in_channels: int,
+#             out_channels: int,
+#             dropout: float = 0.0,
+#             num_layers: int = 1,
+#             eps: float = 1e-6,
+#             time_scale_shift: Literal["default", "ada_group"] = "default",
+#             act_fn: Literal["swish", "silu", "mish", "gelu", "relu"] = "swish",
+#             groups: int = 32,
+#             pre_norm: bool = True,
+#             output_scale_factor: float = 1.0,
+#             add_spatial_upsample: bool = True,
+#             add_temporal_upsample: bool = False,
+#             temb_channels: int = None,
+#             interpolate: bool = False
+#     ):
+        
+#         super().__init__()
+
+#         resnets = []
+        
+#         for i in range(num_layers):
+#             input_channels = in_channels if i == 0 else out_channels
+#             # print(f"loop >>>>>>>> {i}")
+#             resnets.append(
+#                 vae_Block3D(
+#                     in_channels=input_channels,
+#                     out_channels=out_channels,
+#                     dropout=dropout,
+#                     temb_channels=temb_channels,
+#                     groups=groups,
+#                     pre_norm=pre_norm,
+#                     eps=eps,
+#                     non_linearity=act_fn,
+#                     time_embedding_norm=time_scale_shift,
+#                     output_scale_factor=output_scale_factor
+#                 )
+#             )
+
+#         self.resnets = nn.ModuleList(resnets)
+
+#         if add_spatial_upsample:
+#             self.upsamplers = nn.ModuleList([
+#                 vae_Upsample(channels=out_channels,
+#                              use_conv=True,
+#                              out_channels=out_channels,
+#                              interpolate=interpolate)
+#             ])
+
+#         else:
+#             self.upsamplers = None
+
+#         if add_temporal_upsample:
+#             self.temporal_upsampler = nn.ModuleList([
+#                 vae_TemporalUpsample(channels=out_channels,
+#                                      use_conv=True,
+#                                      out_channels=out_channels,
+#                                      interpolate=interpolate)
+#             ])
+
+#         else:
+#             self.temporal_upsampler = None
+
+        
+
+
+#     def forward(self, 
+#                 hidden_states: torch.FloatTensor,
+#                 temb: torch.FloatTensor = None,
+#                 is_init_image=True,
+#                 temporal_chunk=False) -> torch.FloatTensor:
+        
+#         # print(f"what is the shape of input_shape: {hidden_states.shape}")
+        
+#         for resnet in self.resnets:
+#             # print('-'*20)
+#             # print(f"resnet: {resnet}")
+#             # print(f"what is the shape of input tensor: {hidden_states.shape}")
+#             hidden_states = resnet(hidden_states,
+#                                    temb=temb,
+#                                    is_init_image=is_init_image,
+#                                    temporal_chunk=temporal_chunk)
+#             # print(f"what is the output tensor: {hidden_states.shape}")
+            
+#             if self.upsamplers is not None:
+#                 for upsample in self.upsamplers:
+#                     hidden_states = upsample(hidden_states, 
+#                                              is_init_image=is_init_image,
+#                                              temporal_chunk=temporal_chunk)
+                    
+#             if self.temporal_upsampler is not None:
+#                 for temporal_upsampler in self.temporal_upsampler:
+#                     hidden_states = temporal_upsampler(hidden_states,
+#                                                        is_init_image=is_init_image,
+#                                                        temporal_chunk=temporal_chunk)
+            
+#         # print(f"what is the shape of output: >>>>>>>>>>>> {hidden_states.shape}")
+#         return hidden_states
+    
+
+
+
 class vae_UpDecoder(nn.Module):
 
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            dropout: float = 0.0,
-            num_layers: int = 1,
-            eps: float = 1e-6,
-            time_scale_shift: Literal["default", "ada_group"] = "default",
-            act_fn: Literal["swish", "silu", "mish", "gelu", "relu"] = "swish",
-            groups: int = 32,
-            pre_norm: bool = True,
-            output_scale_factor: float = 1.0,
-            add_spatial_upsample: bool = True,
-            add_temporal_upsample: bool = False,
-            temb_channels: int = None,
-            interpolate: bool = False
-    ):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 dropout: float = 0.0,
+                 num_layers: int = 1,
+                 eps: float = 1e-6,
+                 time_scale_shift: Literal["default", "ada_group"] = "default",
+                 act_fn: Literal["swish", "silu", "mish", "gelu", "relu"] = "swish",
+                 groups: int = 32,
+                 pre_norm: bool = True,
+                 output_scale_factor: float = 1.0,
+                 add_spatial_upsample: bool = True,
+                 add_temporal_upsample: bool = False,
+                 temb_channels: int = None,
+                 interpolate: bool = False
+                 ): 
         
         super().__init__()
 
         resnets = []
-        
+
         for i in range(num_layers):
             input_channels = in_channels if i == 0 else out_channels
 
             resnets.append(
-                vae_Block3D(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    dropout=dropout,
-                    temb_channels=temb_channels,
-                    groups=groups,
-                    pre_norm=pre_norm,
-                    eps=eps,
-                    non_linearity=act_fn,
-                    time_embedding_norm=time_scale_shift,
-                    output_scale_factor=output_scale_factor
-                )
+                vae_Block3D(in_channels=in_channels,
+                            out_channels=out_channels,
+                            dropout=dropout,
+                            temb_channels=temb_channels,
+                            groups=groups,
+                            pre_norm=pre_norm,
+                            eps=eps,
+                            non_linearity=act_fn,
+                            time_embedding_norm=time_scale_shift,
+                            output_scale_factor=output_scale_factor,
+                            )
             )
+            self.resnets = nn.ModuleList(resnets)
 
-        self.resnets = nn.ModuleList(resnets)
+            ######################### spatial upsample ##################
+            if add_spatial_upsample:
+                self.upsamplers = nn.ModuleList([
+                    vae_Upsample(channels=out_channels,
+                                 use_conv=True,
+                                 out_channels=out_channels,
+                                 interpolate=interpolate)
+                ])
+            else:
+                self.upsamplers = None
 
-        if add_spatial_upsample:
-            self.upsamplers = nn.ModuleList([
-                vae_Upsample(channels=out_channels,
-                             use_conv=True,
-                             out_channels=out_channels,
-                             interpolate=interpolate)
-            ])
+            ########################### Temporal upsample #########################
+            if add_temporal_upsample:
+                self.temporal_upsamplers = nn.ModuleList([
+                    vae_TemporalUpsample(channels=out_channels,
+                                         use_conv=True,
+                                         out_channels=out_channels,
+                                         interpolate=interpolate)
+                ])
+            else:
+                self.temporal_upsamplers = None
 
-        else:
-            self.upsamplers = None
-
-        if add_temporal_upsample:
-            self.temporal_upsampler = nn.ModuleList([
-                vae_TemporalUpsample(channels=out_channels,
-                                     use_conv=True,
-                                     out_channels=out_channels,
-                                     interpolate=interpolate)
-            ])
-
-        else:
-            self.temporal_upsampler = None
-
-        
 
 
     def forward(self, 
                 hidden_states: torch.FloatTensor,
-                temb: torch.FloatTensor = None,
-                is_init_image=True,
-                temporal_chunk=False) -> torch.FloatTensor:
+                temb: Optional[torch.FloatTensor] = None,
+                is_init_image = True,
+                temporal_chunk = False) -> torch.FloatTensor:
         
         for resnet in self.resnets:
-            # print(f"checking the loop: {hidden_states.shape}")
+            # print(f"what is the input shape: <> <> <> <> <> <> {hidden_states.shape}")
             hidden_states = resnet(hidden_states,
-                                   temb=temb,
                                    is_init_image=is_init_image,
                                    temporal_chunk=temporal_chunk)
             
-            if self.upsamplers is not None:
-                for upsample in self.upsamplers:
-                    hidden_states = upsample(hidden_states, 
-                                             is_init_image=is_init_image,
-                                             temporal_chunk=temporal_chunk)
-                    
-            if self.temporal_upsampler is not None:
-                for temporal_upsampler in self.temporal_upsampler:
-                    hidden_states = temporal_upsampler(hidden_states,
-                                                       is_init_image=is_init_image,
-                                                       temporal_chunk=temporal_chunk)
-            
+            # print(f"what is the output shape : <> <> <> <> <> <> {hidden_states.shape}")
+
+        if self.upsamplers is not None:
+            for upsampler in self.upsamplers:
+                hidden_states = upsampler(hidden_states,
+                                          is_init_image=is_init_image,
+                                          temporal_chunk=temporal_chunk)
+                
+                # print(f"what is the shape 2x <> <> <> <> : {hidden_states.shape}")
+
+        if self.temporal_upsamplers is not None:
+            for temporal_upsampler in self.temporal_upsamplers:
+                hidden_states = temporal_upsampler(hidden_states,
+                                                   is_init_image=is_init_image,
+                                                   temporal_chunk=temporal_chunk)
+                
+                # print(f"what is the shape of temporal data shape: <> <> <> <> : {hidden_states.shape}")
 
         return hidden_states
-    
 
+        
 
 
 class vae_MidBlock(nn.Module):

@@ -135,7 +135,7 @@ class vae_Block3D(nn.Module):
                 is_init_image=True,
                 temporal_chunk=False) -> torch.FloatTensor:
         
-        
+        print(f"what is the input tensor to get: {input_tensor.shape}")
 
         hidden_states = input_tensor
         
@@ -151,7 +151,8 @@ class vae_Block3D(nn.Module):
             pass
 
         else:
-            print(f"what is the data to get in norm: {hidden_states.shape}")
+            # print(f"what is the data to get in norm: {hidden_states.shape}")
+            # print(f"norm: {self.norm1}")
             hidden_states = self.norm1(hidden_states)
 
         # passing the data in activation function [1st-step]
@@ -202,7 +203,7 @@ class vae_Block3D(nn.Module):
         # so this the residual connection 
         # print(f"what is the shape of input_tensor: {input_tensor.shape} and hidden_states: {hidden_states.shape}")
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
-
+        # print(f"what is the output_tensor >>>>>>>>>>>>>>>>: {output_tensor.shape}")
         return output_tensor
     
 
@@ -364,7 +365,10 @@ class vae_Upsample(nn.Module):
         self.out_channels = out_channels or channels
         self.use_conv = use_conv
         self.interploate = interpolate
+
+        # print(f"what is the get to channels: {self.channels}")
         
+        self.conv = None
         if interpolate:
             raise NotImplementedError("please does not do `interploate=True`")
         else:
@@ -374,11 +378,16 @@ class vae_Upsample(nn.Module):
                                 stride=1,
                                 bias=bias)
             
+        
+            
 
     def forward(self,
                 hidden_states: torch.FloatTensor,
                 is_init_image=True,
                 temporal_chunk=False) -> torch.FloatTensor:
+        
+        # print(f"know the conv: {self.conv}")
+        # print(f"what is the shape of input shape: {hidden_states.shape}")
 
         assert hidden_states.shape[1] == self.channels, "make sure channels are equal to data channels !"
 
@@ -390,7 +399,7 @@ class vae_Upsample(nn.Module):
         hidden_states = rearrange(hidden_states,
                                 'b (c p1 p2) t h w -> b c t (h p1) (w p2)',
                                 p1=2, p2=2)
-        
+        # print(f"what is the output shape:  >>>>>> {hidden_states.shape}")
         return hidden_states
     
 

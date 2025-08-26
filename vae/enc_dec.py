@@ -243,10 +243,11 @@ class VaeDecoder(nn.Module):
 
             # up block 
             for up_block in self.up_blocks:
-                
+                # print(f"what is the shape of input: <> <> <> <> {sample.shape}")
                 sample = up_block(sample,
                                   is_init_image=is_init_image,
                                   temporal_chunk=temporal_chunk)
+                # print(f"what is the output shape: <> <> <> <> {sample.shape}")
                 
             # post-process 
             sample = self.conv_norm_out(sample)
