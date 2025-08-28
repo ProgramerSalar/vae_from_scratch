@@ -73,18 +73,25 @@ class CausalResnetBlock3D(nn.Module):
         self.output_scale_factor = output_scale_factor
         self.time_embedding_norm = time_embedding_norm
 
+        
         linear_cls = nn.Linear
 
         if groups_out is None:
             groups_out = groups
 
         if self.time_embedding_norm == "ada_group":
-            self.norm1 = AdaGroupNorm(temb_channels, in_channels, groups, eps=eps)
+
+            # self.norm1 = AdaGroupNorm(temb_channels, in_channels, groups, eps=eps)
+            pass 
+
         elif self.time_embedding_norm == "spatial":
-            self.norm1 = SpatialNorm(in_channels, temb_channels)
+            # self.norm1 = SpatialNorm(in_channels, temb_channels)
+            pass 
+
         else:
             self.norm1 = CausalGroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
+        
         self.conv1 = CausalConv3d(in_channels, out_channels, kernel_size=3, stride=1)
 
         if self.time_embedding_norm == "ada_group":
@@ -95,15 +102,25 @@ class CausalResnetBlock3D(nn.Module):
             self.norm2 = CausalGroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
         self.dropout = torch.nn.Dropout(dropout)
-        conv_2d_out_channels = conv_2d_out_channels or out_channels
+        # conv_2d_out_channels = conv_2d_out_channels or out_channels
+        conv_2d_out_channels = out_channels
         self.conv2 = CausalConv3d(out_channels, conv_2d_out_channels, kernel_size=3, stride=1)
 
         self.nonlinearity = get_activation(non_linearity)
         self.upsample = self.downsample = None
-        self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        # self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        if use_in_shortcut is None:
+            self.use_in_shortcut = self.in_channels != conv_2d_out_channels
+            # print(f"in_channels = {self.in_channels}, conv2d_out_channels = {conv_2d_out_channels}")
+
+        else:
+            self.use_in_shortcut
+
+       
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
+            # print(f"working....")
             self.conv_shortcut = CausalConv3d(
                 in_channels,
                 conv_2d_out_channels,
@@ -119,16 +136,21 @@ class CausalResnetBlock3D(nn.Module):
         is_init_image=True, 
         temporal_chunk=False,
     ) -> torch.FloatTensor:
+        print(f"what is the input tensor to get: {input_tensor.shape}")
+        
         hidden_states = input_tensor
 
         if self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
             hidden_states = self.norm1(hidden_states, temb)
         else:
+            # print(f"what is the data to get in norm: {hidden_states.shape}")
+
             hidden_states = self.norm1(hidden_states)
 
         hidden_states = self.nonlinearity(hidden_states)
 
         hidden_states = self.conv1(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        
 
         if temb is not None and self.time_embedding_norm == "default":
             hidden_states = hidden_states + temb
@@ -145,7 +167,9 @@ class CausalResnetBlock3D(nn.Module):
         if self.conv_shortcut is not None:
             input_tensor = self.conv_shortcut(input_tensor, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
+        # print(f"what is the shape of input_tensor: {input_tensor.shape} and hidden_state: {hidden_states.shape}")
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
+        # print(f"what is the output_tensor: {output_tensor.shape}")
 
         return output_tensor
 
@@ -598,6 +622,9 @@ class CausalUpsample2x(nn.Module):
         self.name = name
         self.interpolate = interpolate
         conv = None
+
+
+        
     
         if interpolate:
             raise NotImplementedError("Not implemented for spatial upsample with interpolate")
@@ -611,9 +638,13 @@ class CausalUpsample2x(nn.Module):
         hidden_states: torch.FloatTensor,
         is_init_image=True, temporal_chunk=False,
     ) -> torch.FloatTensor:
+        # print(f"what is the shape of input shape: {hidden_states.shape}")
+        
         assert hidden_states.shape[1] == self.channels
         hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk) 
         hidden_states = rearrange(hidden_states, 'b (c p1 p2) t h w -> b c t (h p1) (w p2)', p1=2, p2=2)
+        # print(f"what is the output shape:  >>>>>> {hidden_states.shape}")
+
         return hidden_states
 
 

@@ -94,6 +94,8 @@ class CausalVaeEncoder(nn.Module):
         super().__init__()
         self.layers_per_block = layers_per_block
 
+        # print(f"what is the input block_out_channels: {block_out_channels} and out_channels: {out_channels}")
+
         self.conv_in = CausalConv3d(
             in_channels,
             block_out_channels[0],
@@ -109,7 +111,7 @@ class CausalVaeEncoder(nn.Module):
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
             output_channel = block_out_channels[i]
-
+            print(f"what is the input_channels: {input_channel} and output_channels: {output_channel}")
             down_block = get_down_block(
                 down_block_type,
                 num_layers=self.layers_per_block[i],
@@ -267,6 +269,7 @@ class CausalVaeDecoder(nn.Module):
         reversed_block_out_channels = list(reversed(block_out_channels))
         output_channel = reversed_block_out_channels[0]
         for i, up_block_type in enumerate(up_block_types):
+            # print(f"what is the index: {i}")
             prev_output_channel = output_channel
             output_channel = reversed_block_out_channels[i]
 
@@ -355,8 +358,10 @@ class CausalVaeDecoder(nn.Module):
             sample = sample.to(upscale_dtype)
             
             # up
-            for up_block in self.up_blocks:
+            for up_block in self.up_blocks: 
+                # print(f"what is the shape of input: <> <> <> <> {sample.shape}")
                 sample = up_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk,)
+                # print(f"what is the output shape: <> <> <> <> {sample.shape}")
 
         # post-process
         sample = self.conv_norm_out(sample)
@@ -420,3 +425,15 @@ class DiagonalGaussianDistribution(object):
 
     def mode(self) -> torch.Tensor:
         return self.mean
+    
+
+if __name__ == '__main__':
+
+    vae = CausalVaeEncoder(out_channels=4,
+                           down_block_types=("DownEncoderBlockCausal3D","DownEncoderBlockCausal3D","DownEncoderBlockCausal3D","DownEncoderBlockCausal3D"),
+                           block_out_channels=(128, 256, 512, 512),
+                           norm_num_groups=2)
+    
+    x = torch.randn(2, 3, 8, 256, 256)
+    output = vae(x)
+    print(output.shape)

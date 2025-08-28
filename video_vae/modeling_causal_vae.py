@@ -668,44 +668,56 @@ if __name__ == "__main__":
     # print(f"Reconstructed video shape: {reconstructed_video.shape}")
     # -------------------------------------------------------------------------
 
-    import torch
+    # import torch
     
 
-    # Configuration
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    # # Configuration
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # print(f"Using device: {device}")
 
-    # Initialize the VAE model
-    vae_config = {
-        "encoder_block_out_channels": (64, 128, 256, 512),
-        "decoder_block_out_channels": (512, 256, 128, 64),
-        "downsample_scale": 8,
-        "scaling_factor": 0.18215,
-    }
-    causal_vae = CausalVideoVAE(**vae_config).to(device)
-    print(f"Model initialized with {sum(p.numel() for p in causal_vae.parameters()):,} parameters")
+    # # Initialize the VAE model
+    # vae_config = {
+    #     "encoder_block_out_channels": (64, 128, 256, 512),
+    #     "decoder_block_out_channels": (512, 256, 128, 64),
+    #     "downsample_scale": 8,
+    #     "scaling_factor": 0.18215,
+    # }
+    # causal_vae = CausalVideoVAE(**vae_config).to(device)
+    # print(f"Model initialized with {sum(p.numel() for p in causal_vae.parameters()):,} parameters")
 
-    # Create a sample video tensor (batch_size, channels, frames, height, width)
-    video = torch.randn(2, 3, 17, 256, 256, device=device)
-    print("Input video shape:", video.shape)
+    # # Create a sample video tensor (batch_size, channels, frames, height, width)
+    # video = torch.randn(2, 3, 17, 256, 256, device=device)
+    # print("Input video shape:", video.shape)
 
-    # Enable gradient checkpointing for memory efficiency
-    causal_vae.enable_gradient_checkpointing()
+    # # Enable gradient checkpointing for memory efficiency
+    # causal_vae.enable_gradient_checkpointing()
 
-    # Encode the video to latent representation
-    with torch.no_grad(), torch.amp.autocast('cuda', dtype=torch.float32):
-        encoding_output = causal_vae.encode(
-            x=video,
-            is_init_image=True,
-            temporal_chunk=True,
-            window_size=8
-        )
+    # # Encode the video to latent representation
+    # with torch.no_grad(), torch.amp.autocast('cuda', dtype=torch.float32):
+    #     encoding_output = causal_vae.encode(
+    #         x=video,
+    #         is_init_image=True,
+    #         temporal_chunk=True,
+    #         window_size=8
+    #     )
         
 
-    print(encoding_output)
+    # print(encoding_output)
 
+# ---------------------------------------------------------------------------------------
 
+    vae = CausalVideoVAE(encoder_norm_num_groups=2)
+    # print(vae)
+    print('-'*50)
+    x = torch.randn(2, 3, 8, 256, 256)
 
+    # vae = vae.encode(x=x)
+    # print(vae)
+
+    z = torch.randn(2, 4, 1, 32, 32)
+
+    dec = vae.decode(z)
+    print(dec)
 
 
 

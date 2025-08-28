@@ -527,8 +527,9 @@ class DownEncoderBlockCausal3D(nn.Module):
 
     def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
         for resnet in self.resnets:
+            
             hidden_states = resnet(hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-
+            
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
                 hidden_states = downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
@@ -706,12 +707,13 @@ class UpDecoderBlockCausal3D(nn.Module):
         temb_channels: Optional[int] = None,
         interpolate: bool = True,
     ):
+        
         super().__init__()
         resnets = []
 
         for i in range(num_layers):
             input_channels = in_channels if i == 0 else out_channels
-
+            # print(f"loop >>>>>> {i}")
             resnets.append(
                 CausalResnetBlock3D(
                     in_channels=input_channels,
@@ -740,20 +742,31 @@ class UpDecoderBlockCausal3D(nn.Module):
             self.temporal_upsamplers = None
 
         self.resolution_idx = resolution_idx
+        
+
 
     def forward(
         self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None,
         is_init_image=True, temporal_chunk=False,
     ) -> torch.FloatTensor:
+        
+        
+
         for resnet in self.resnets:
+            # print(f"what is the input shape: <> <> <> <> <> <> {hidden_states.shape}")
             hidden_states = resnet(hidden_states, temb=temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            # print(f"what is the output shape : <> <> <> <> <> <> {hidden_states.shape}")
+            
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-        
+                # print(f"what is the shape 2x <> <> <> <> : {hidden_states.shape}")
+
+
+
         if self.temporal_upsamplers is not None:
             for temporal_upsampler in self.temporal_upsamplers:
                 hidden_states = temporal_upsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-
+                # print(f"what is the shape of temporal data shape: <> <> <> <> : {hidden_states.shape}")
         return hidden_states
