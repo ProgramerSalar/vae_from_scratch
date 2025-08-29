@@ -486,6 +486,7 @@ class DownEncoderBlockCausal3D(nn.Module):
 
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
+            print(f"what is the in_channels: {in_channels}, out_channels: {out_channels}")
             resnets.append(
                 CausalResnetBlock3D(
                     in_channels=in_channels,
@@ -527,7 +528,7 @@ class DownEncoderBlockCausal3D(nn.Module):
 
     def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
         for resnet in self.resnets:
-            
+            # print(f"resnets: {resnet}")
             hidden_states = resnet(hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
             
         if self.downsamplers is not None:
@@ -770,3 +771,15 @@ class UpDecoderBlockCausal3D(nn.Module):
                 hidden_states = temporal_upsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
                 # print(f"what is the shape of temporal data shape: <> <> <> <> : {hidden_states.shape}")
         return hidden_states
+
+
+
+
+
+if __name__ == "__main__":
+
+    down_encoder_block_causal_3d = DownEncoderBlockCausal3D(in_channels=64,
+                                                            num_layers=2,
+                                                            out_channels=64)
+    
+    print(down_encoder_block_causal_3d)

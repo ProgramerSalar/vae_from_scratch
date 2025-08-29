@@ -187,17 +187,15 @@ class CausalVaeEncoder(nn.Module):
         else:
             # down
             for down_block in self.down_blocks:
-                print(f"what is the down_block: {down_block} and data shape: {sample.shape}")
-                break
                 sample = down_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
             # middle
-        #     sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
-        # # post-process
-        # sample = self.conv_norm_out(sample)
-        # sample = self.conv_act(sample)
-        # sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        # post-process
+        sample = self.conv_norm_out(sample)
+        sample = self.conv_act(sample)
+        sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         return sample
 
