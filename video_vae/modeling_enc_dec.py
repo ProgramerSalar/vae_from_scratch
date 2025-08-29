@@ -187,15 +187,17 @@ class CausalVaeEncoder(nn.Module):
         else:
             # down
             for down_block in self.down_blocks:
+                print(f"what is the down_block: {down_block} and data shape: {sample.shape}")
+                break
                 sample = down_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
             # middle
-            sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        #     sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
-        # post-process
-        sample = self.conv_norm_out(sample)
-        sample = self.conv_act(sample)
-        sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        # # post-process
+        # sample = self.conv_norm_out(sample)
+        # sample = self.conv_act(sample)
+        # sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         return sample
 
@@ -430,8 +432,15 @@ class DiagonalGaussianDistribution(object):
 if __name__ == '__main__':
 
     vae = CausalVaeEncoder(out_channels=4,
-                           down_block_types=("DownEncoderBlockCausal3D","DownEncoderBlockCausal3D","DownEncoderBlockCausal3D","DownEncoderBlockCausal3D"),
-                           block_out_channels=(128, 256, 512, 512),
+                           down_block_types=("DownEncoderBlockCausal3D",
+                                             "DownEncoderBlockCausal3D",
+                                             "DownEncoderBlockCausal3D",
+                                             "DownEncoderBlockCausal3D",),
+                           block_out_channels=(128, 256, 512, 512,),
+                           layers_per_block=(2, 2, 2, 2),
+                           spatial_down_sample=(True, True, True, False),
+                           temporal_down_sample=(True, True, True, False),
+                           block_dropout=(0.0, 0.0, 0.0, 0.0),
                            norm_num_groups=2)
     
     x = torch.randn(2, 3, 8, 256, 256)
