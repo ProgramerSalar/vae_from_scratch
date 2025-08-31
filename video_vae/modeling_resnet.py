@@ -111,8 +111,8 @@ class CausalResnetBlock3D(nn.Module):
         # self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
         if use_in_shortcut is None:
             self.use_in_shortcut = self.in_channels != conv_2d_out_channels
-            # print(f"in_channels = {self.in_channels}, conv2d_out_channels = {conv_2d_out_channels}")
-            print(f"what is the use_in_shortcut: {self.use_in_shortcut}")
+            
+            
 
         else:
             self.use_in_shortcut
@@ -120,8 +120,9 @@ class CausalResnetBlock3D(nn.Module):
        
 
         self.conv_shortcut = None
+       
         if self.use_in_shortcut:
-            # print(f"working....")
+            
             self.conv_shortcut = CausalConv3d(
                 in_channels,
                 conv_2d_out_channels,
@@ -137,14 +138,15 @@ class CausalResnetBlock3D(nn.Module):
         is_init_image=True, 
         temporal_chunk=False,
     ) -> torch.FloatTensor:
-        # print(f"what is the input tensor to get: {input_tensor.shape}")
+        
         
         hidden_states = input_tensor
 
         if self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
-            hidden_states = self.norm1(hidden_states, temb)
+            # hidden_states = self.norm1(hidden_states, temb)
+            pass
         else:
-            # print(f"what is the data to get in norm: {hidden_states.shape}")
+           
 
             hidden_states = self.norm1(hidden_states)
 
@@ -154,10 +156,12 @@ class CausalResnetBlock3D(nn.Module):
         
 
         if temb is not None and self.time_embedding_norm == "default":
-            hidden_states = hidden_states + temb
+            # hidden_states = hidden_states + temb
+            pass 
 
         if self.time_embedding_norm == "ada_group" or self.time_embedding_norm == "spatial":
-            hidden_states = self.norm2(hidden_states, temb)
+            # hidden_states = self.norm2(hidden_states, temb)
+            pass 
         else:
             hidden_states = self.norm2(hidden_states)
 
@@ -166,11 +170,14 @@ class CausalResnetBlock3D(nn.Module):
         hidden_states = self.conv2(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         if self.conv_shortcut is not None:
+       
             input_tensor = self.conv_shortcut(input_tensor, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+           
 
-        # print(f"what is the shape of input_tensor: {input_tensor.shape} and hidden_state: {hidden_states.shape}")
+
+       
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
-        # print(f"what is the output_tensor: {output_tensor.shape}")
+ 
 
         return output_tensor
 

@@ -516,6 +516,8 @@ class DownEncoderBlockCausal3D(nn.Module):
             self.downsamplers = None
 
         if add_temporal_downsample:
+            # print(f"what is input_channels: <><><><><> {out_channels} and output_channels: <><><><><> {out_channels}")
+
             self.temporal_downsamplers = nn.ModuleList(
                 [
                     CausalTemporalDownsample2x(
@@ -528,16 +530,24 @@ class DownEncoderBlockCausal3D(nn.Module):
 
     def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
         for resnet in self.resnets:
-            # print(f"resnets: {resnet}")
             hidden_states = resnet(hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            
             
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
+              
+
                 hidden_states = downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+             
+
 
         if self.temporal_downsamplers is not None:
             for temporal_downsampler in self.temporal_downsamplers:
+             
+                
                 hidden_states = temporal_downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+              
+                
 
         return hidden_states
     
@@ -754,9 +764,10 @@ class UpDecoderBlockCausal3D(nn.Module):
         
 
         for resnet in self.resnets:
-            # print(f"what is the input shape: <> <> <> <> <> <> {hidden_states.shape}")
+            
             hidden_states = resnet(hidden_states, temb=temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-            # print(f"what is the output shape : <> <> <> <> <> <> {hidden_states.shape}")
+           
+            
             
 
         if self.upsamplers is not None:

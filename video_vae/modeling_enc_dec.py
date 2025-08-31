@@ -93,9 +93,6 @@ class CausalVaeEncoder(nn.Module):
     ):
         super().__init__()
         self.layers_per_block = layers_per_block
-
-        # print(f"what is the input block_out_channels: {block_out_channels} and out_channels: {out_channels}")
-
         self.conv_in = CausalConv3d(
             in_channels,
             block_out_channels[0],
@@ -108,11 +105,10 @@ class CausalVaeEncoder(nn.Module):
 
         # down
         output_channel = block_out_channels[0]
-        # print(f"what is the output channels before the loop: >>>>> {output_channel}")
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
             output_channel = block_out_channels[i]
-            # print(f"what is the input_channels: {input_channel} and output_channels: {output_channel}")
+         
             down_block = get_down_block(
                 down_block_type,
                 num_layers=self.layers_per_block[i],
@@ -364,9 +360,7 @@ class CausalVaeDecoder(nn.Module):
             
             # up
             for up_block in self.up_blocks: 
-                # print(f"what is the shape of input: <> <> <> <> {sample.shape}")
                 sample = up_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk,)
-                # print(f"what is the output shape: <> <> <> <> {sample.shape}")
 
         # post-process
         sample = self.conv_norm_out(sample)
@@ -445,7 +439,7 @@ if __name__ == '__main__':
                            temporal_down_sample=(True, True, True, False),
                            block_dropout=(0.0, 0.0, 0.0, 0.0),
                            norm_num_groups=2)
-    print(vae)
+    # print(vae)
     
     x = torch.randn(2, 3, 8, 256, 256)
     output = vae(x)
