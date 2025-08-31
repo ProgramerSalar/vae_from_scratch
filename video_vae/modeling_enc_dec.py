@@ -108,10 +108,11 @@ class CausalVaeEncoder(nn.Module):
 
         # down
         output_channel = block_out_channels[0]
+        # print(f"what is the output channels before the loop: >>>>> {output_channel}")
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
             output_channel = block_out_channels[i]
-            print(f"what is the input_channels: {input_channel} and output_channels: {output_channel}")
+            # print(f"what is the input_channels: {input_channel} and output_channels: {output_channel}")
             down_block = get_down_block(
                 down_block_type,
                 num_layers=self.layers_per_block[i],
@@ -128,28 +129,31 @@ class CausalVaeEncoder(nn.Module):
                 dropout=block_dropout[i],
             )
             self.down_blocks.append(down_block)
+            
+        
+        
 
         # mid
-        self.mid_block = CausalUNetMidBlock2D(
-            in_channels=block_out_channels[-1],
-            resnet_eps=1e-6,
-            resnet_act_fn=act_fn,
-            output_scale_factor=1,
-            resnet_time_scale_shift="default",
-            attention_head_dim=block_out_channels[-1],
-            resnet_groups=norm_num_groups,
-            temb_channels=None,
-            add_attention=mid_block_add_attention,
-            dropout=block_dropout[-1],
-        )
+        # self.mid_block = CausalUNetMidBlock2D(
+        #     in_channels=block_out_channels[-1],
+        #     resnet_eps=1e-6,
+        #     resnet_act_fn=act_fn,
+        #     output_scale_factor=1,
+        #     resnet_time_scale_shift="default",
+        #     attention_head_dim=block_out_channels[-1],
+        #     resnet_groups=norm_num_groups,
+        #     temb_channels=None,
+        #     add_attention=mid_block_add_attention,
+        #     dropout=block_dropout[-1],
+        # )
 
-        # out
+        # # out
 
-        self.conv_norm_out = CausalGroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        # self.conv_norm_out = CausalGroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        # self.conv_act = nn.SiLU()
 
-        conv_out_channels = 2 * out_channels if double_z else out_channels
-        self.conv_out = CausalConv3d(block_out_channels[-1], conv_out_channels, kernel_size=3, stride=1)
+        # conv_out_channels = 2 * out_channels if double_z else out_channels
+        # self.conv_out = CausalConv3d(block_out_channels[-1], conv_out_channels, kernel_size=3, stride=1)
 
         self.gradient_checkpointing = False
 
@@ -190,12 +194,12 @@ class CausalVaeEncoder(nn.Module):
                 sample = down_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
             # middle
-            sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        #     sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
-        # post-process
-        sample = self.conv_norm_out(sample)
-        sample = self.conv_act(sample)
-        sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        # # post-process
+        # sample = self.conv_norm_out(sample)
+        # sample = self.conv_act(sample)
+        # sample = self.conv_out(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         return sample
 
@@ -440,7 +444,9 @@ if __name__ == '__main__':
                            temporal_down_sample=(True, True, True, False),
                            block_dropout=(0.0, 0.0, 0.0, 0.0),
                            norm_num_groups=2)
+    print(vae)
     
     x = torch.randn(2, 3, 8, 256, 256)
     output = vae(x)
-    print(output.shape)
+    # [2, 3, 8, 256, 256] -> [2, 512, 1 , 32, 32]
+    print(f"This is the encoder shape: {output.shape}")

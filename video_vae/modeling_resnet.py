@@ -112,6 +112,7 @@ class CausalResnetBlock3D(nn.Module):
         if use_in_shortcut is None:
             self.use_in_shortcut = self.in_channels != conv_2d_out_channels
             # print(f"in_channels = {self.in_channels}, conv2d_out_channels = {conv_2d_out_channels}")
+            print(f"what is the use_in_shortcut: {self.use_in_shortcut}")
 
         else:
             self.use_in_shortcut
@@ -136,7 +137,7 @@ class CausalResnetBlock3D(nn.Module):
         is_init_image=True, 
         temporal_chunk=False,
     ) -> torch.FloatTensor:
-        print(f"what is the input tensor to get: {input_tensor.shape}")
+        # print(f"what is the input tensor to get: {input_tensor.shape}")
         
         hidden_states = input_tensor
 

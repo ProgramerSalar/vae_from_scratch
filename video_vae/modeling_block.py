@@ -486,7 +486,7 @@ class DownEncoderBlockCausal3D(nn.Module):
 
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
-            print(f"what is the in_channels: {in_channels}, out_channels: {out_channels}")
+            # print(f"what is the in_channels: {in_channels}, out_channels: {out_channels}")
             resnets.append(
                 CausalResnetBlock3D(
                     in_channels=in_channels,
