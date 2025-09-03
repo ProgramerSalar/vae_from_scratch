@@ -410,6 +410,7 @@ class CausalUNetMidBlock2D(nn.Module):
         for _ in range(num_layers):
             if self.add_attention:
                 # Spatial attention
+                print(f"what is the attn_groups: >>>>>>>>>>>>>>>>{attn_groups}")
                 attentions.append(
                     Attention(
                         in_channels,
@@ -460,7 +461,7 @@ class CausalUNetMidBlock2D(nn.Module):
                 hidden_states = rearrange(hidden_states, 'b t c h w -> b c t h w')
 
             hidden_states = resnet(hidden_states, temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-
+        print(f"what is the shape of data in middle_block: {hidden_states.shape}")
         return hidden_states
 
 
@@ -530,29 +531,21 @@ class DownEncoderBlockCausal3D(nn.Module):
 
     def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
         for resnet in self.resnets:
-            print(f"[resnet] input: {hidden_states.shape}")
             hidden_states = resnet(hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-            print(f"[resnet] output: {hidden_states.shape}")
+            
             
             
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-              
-                print(f"[downsampler] input: {hidden_states.shape}")
-
                 hidden_states = downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-                print(f"[downsampler] output: {hidden_states.shape}")
+                
              
 
 
         if self.temporal_downsamplers is not None:
             for temporal_downsampler in self.temporal_downsamplers:
-             
-                print(f"[temporaldownsampler] input: {hidden_states.shape}")
-                
                 hidden_states = temporal_downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-                print(f"[temporaldownsampler] output: {hidden_states.shape}")
-              
+                
                 
 
         return hidden_states

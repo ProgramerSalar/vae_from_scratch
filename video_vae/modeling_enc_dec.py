@@ -440,7 +440,7 @@ if __name__ == '__main__':
                            temporal_down_sample=(True, True, True, False),
                            block_dropout=(0.0, 0.0, 0.0, 0.0),
                            norm_num_groups=2)
-    # print(vae)
+    print(vae)
     
     x = torch.randn(2, 3, 8, 256, 256)
     output = vae(x)
