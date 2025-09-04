@@ -274,6 +274,7 @@ class CausalVaeDecoder(nn.Module):
             # print(f"what is the index: {i}")
             prev_output_channel = output_channel
             output_channel = reversed_block_out_channels[i]
+            print(f"what is the input_channels: {prev_output_channel} and output_channels: {output_channel}")
 
             is_final_block = i == len(block_out_channels) - 1
 
@@ -429,7 +430,7 @@ class DiagonalGaussianDistribution(object):
 
 if __name__ == '__main__':
 
-    vae = CausalVaeEncoder(out_channels=4,
+    vae = CausalVaeEncoder(out_channels=3,
                            down_block_types=("DownEncoderBlockCausal3D",
                                              "DownEncoderBlockCausal3D",
                                              "DownEncoderBlockCausal3D",
@@ -440,9 +441,29 @@ if __name__ == '__main__':
                            temporal_down_sample=(True, True, True, False),
                            block_dropout=(0.0, 0.0, 0.0, 0.0),
                            norm_num_groups=2)
-    print(vae)
+    # print(vae)
     
     x = torch.randn(2, 3, 8, 256, 256)
     output = vae(x)
-    # [2, 3, 8, 256, 256] -> [2, 512, 1 , 32, 32]
+    # [2, 3, 8, 256, 256] -> [2, 2*3, 1 , 32, 32]
     print(f"This is the encoder shape: {output.shape}")
+    # -------------------------------------------------------------------------------------------
+
+    decoder = CausalVaeDecoder(in_channels=6,
+                               out_channels=3,
+                               up_block_types=("UpDecoderBlockCausal3D",
+                                               "UpDecoderBlockCausal3D",
+                                               "UpDecoderBlockCausal3D",
+                                               "UpDecoderBlockCausal3D",),
+                                spatial_up_sample=(True, True, True, False),
+                                temporal_up_sample=(True, True, True, False),
+                                block_out_channels=(128, 256, 512, 512),
+                                norm_num_groups=2,
+                                layers_per_block=(3, 3, 3, 3),
+                                interpolate=False,
+                                block_dropout=(0,0, 0,0, 0,0, 0,0))
+    
+    # print(decoder)
+
+    output = decoder(output)
+    print(f"what is the shape of decoder output: {output.shape}")
