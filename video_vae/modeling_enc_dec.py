@@ -465,5 +465,6 @@ if __name__ == '__main__':
     
     # print(decoder)
 
+    # [2, 2*3, 1 , 32, 32] -> torch.Size([2, 3, 1, 256, 256])
     output = decoder(output)
     print(f"what is the shape of decoder output: {output.shape}")
