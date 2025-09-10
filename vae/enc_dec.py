@@ -17,6 +17,7 @@
 import torch 
 from torch import nn 
 from typing import List, Union, Tuple
+import numpy as np 
 
 from .conv import CausalConv3d, CausalGroupNorm
 from .blocks import CausalBlock3d, CausalMiddleBlock3d, CausalUpperBlock
@@ -202,6 +203,81 @@ class CausalDecoder(nn.Module):
         return sample
     
 
+class DiagonalGaussianDistribution(object):
+
+    def __init__(self,
+                 parameters: torch.Tensor,
+                 determinstric: bool = False):
+        
+        self.parameters = parameters
+        self.determinstric = determinstric
+
+        self.mean, self.logvar = torch.chunk(parameters, 2, dim=1)
+        self.logvar = torch.clamp(self.logvar, -30.0, 20.0)
+        self.std = torch.exp(0.5 * self.logvar)
+        self.var = torch.exp(self.logvar)
+
+        if self.determinstric:
+            self.var = self.std = torch.zeros_like(
+                self.mean, device=self.parameters.device, dtype=self.parameters.dtype
+            )
+
+    
+    def sample(self,
+               generator: torch.Generator = None) -> torch.FloatTensor:
+        
+        sample = torch.randn(self.mean.shape,
+                             generator=generator,
+                             dtype=self.parameters.dtype,
+                             device=self.parameters.device)
+        x = self.mean + self.std * sample
+        return x 
+    
+    def kl(self,                                        
+           other: "DiagonalGaussianDistribution"=None   
+           ) -> torch.Tensor:
+        
+        if self.determinstric:
+            return torch.Tensor([0.0])
+        else:
+            if other is None:
+                return 0.5 * torch.sum(
+                    torch.pow(self.mean, 2) + self.var - 1.0 - self.logvar,
+                    dim=[2, 3, 4]
+                )
+            else:
+                return 0.5 * torch.sum(
+                    torch.pow(self.mean - other.mean, 2) / other.var 
+                    + self.var / other.var 
+                    - 1.0
+                    - self.logvar
+                    + other.logvar,
+                    dim=[2, 3, 4]
+                )
+            
+    def nll(self,
+            sample: torch.Tensor,
+            dims: Tuple[int, ...] = [1, 2, 3]) -> torch.Tensor:
+        
+        if self.determinstric:
+            return torch.Tensor([0.0])
+        logtwopi = np.log(2.0 * np.pi)
+        return 0.5 * torch.sum(
+            logtwopi + self.logvar + torch.pow(sample - self.mean, 2) / self.var,
+            dim=dims
+        )
+    
+    def mode(self) -> torch.Tensor:
+        return self.mean
+    
+        
+
+    
+
+
+
+    
+
 if __name__ == "__main__":
 
     # causal_encoder = CausalEncoder(in_channels=3,
@@ -221,16 +297,33 @@ if __name__ == "__main__":
     # output = causal_encoder(x)
     # print(output.shape)
     # -------------------------------------------------------
-    causal_decoder = CausalDecoder(in_channels=4, 
-                                   out_channels=3,
-                                   num_layers=3,
-                                   eps=1e-6,
-                                   norm_num_groups=2,
-                                   )
+    # causal_decoder = CausalDecoder(in_channels=4, 
+    #                                out_channels=3,
+    #                                num_layers=3,
+    #                                eps=1e-6,
+    #                                norm_num_groups=2,
+    #                                )
     
-    print(causal_decoder)
-    z = torch.randn(2, 4, 1, 32, 32)
+    # print(causal_decoder)
+    # z = torch.randn(2, 4, 1, 32, 32)
 
-    # (2, 8, 1, 32, 32) -> (2, 3, 1, 256, 256)
-    output = causal_decoder(z)
-    print(output.shape)
+    # # (2, 8, 1, 32, 32) -> (2, 3, 1, 256, 256)
+    # output = causal_decoder(z)
+    # print(output.shape)
+    # ----------------------------------------------------------
+
+    x = torch.randn(2, 3, 1, 256, 256)
+    diagonal_gaussian_distribution = DiagonalGaussianDistribution(parameters=x,
+                                                                  determinstric=False
+                                                                  )
+    
+    kl_divergance = diagonal_gaussian_distribution.kl()
+    # print(kl_divergance.shape)
+
+    sample = diagonal_gaussian_distribution.sample()
+    print(sample.shape)
+
+    neg_log_liklihood = diagonal_gaussian_distribution.nll(sample=sample,
+                                                           )
+    print(neg_log_liklihood.shape)
+    
