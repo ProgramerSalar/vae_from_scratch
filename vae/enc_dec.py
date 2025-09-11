@@ -17,11 +17,25 @@
 import torch 
 from torch import nn 
 from typing import List, Union, Tuple
-import numpy as np 
+import numpy as np
+import torch.utils.checkpoint 
+from dataclasses import dataclass
+from diffusers.utils import BaseOutput
 
 from .conv import CausalConv3d, CausalGroupNorm
 from .blocks import CausalBlock3d, CausalMiddleBlock3d, CausalUpperBlock
 
+
+
+class DecoderOutput(BaseOutput):
+    """ 
+    output of decoding method.
+
+    Args:
+        sample (`torch.floatTensor` of shape `(batch_size, channels, height, width)`):
+            The decoded output sample from the last layer of the model.
+    """
+    sample: torch.FloatTensor
 
 
 
@@ -99,18 +113,40 @@ class CausalEncoder(nn.Module):
         
         # [2, 3, 8, 256, 256] -> [2, 128, 8, 256, 256]
         sample = self.conv_in(sample)
-        
-        
-        for encoder_block_layer in self.encoder_block_layers:
-            # [2, 128, 8, 256, 256] -> [2, 128, 4, 128, 128]
-            # [2, 128, 4, 128, 128] -> [2, 256, 2, 64, 64]
-            # [2, 256, 2, 64, 64] -> [2, 512, 1, 32, 32]
-            # [2, 512, 1, 32, 32] -> [2, 512, 1, 32, 32]
-            sample = encoder_block_layer(sample)
 
+        if self.training and self.gradient_checkpointing:
+
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
+                return custom_forward
+            
+            # down block
+            for encoder_block_layer in self.encoder_block_layers:
+
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(encoder_block_layer), sample,
+                    use_reentrant=False
+                )
+
+            # middle block 
+            sample = torch.utils.checkpoint.checkpoint(
+                create_custom_forward(self.mid_block_layer), sample,
+                use_reentrant=False
+            )
+            
         
-        # mid block 
-        sample = self.mid_block_layer(sample)
+        else:
+            for encoder_block_layer in self.encoder_block_layers:
+                # [2, 128, 8, 256, 256] -> [2, 128, 4, 128, 128]
+                # [2, 128, 4, 128, 128] -> [2, 256, 2, 64, 64]
+                # [2, 256, 2, 64, 64] -> [2, 512, 1, 32, 32]
+                # [2, 512, 1, 32, 32] -> [2, 512, 1, 32, 32]
+                sample = encoder_block_layer(sample)
+
+            # mid block 
+            sample = self.mid_block_layer(sample)
+
 
         sample = self.conv_norm_output(sample)
         sample = self.act_fn(sample)
@@ -134,7 +170,6 @@ class CausalDecoder(nn.Module):
                 norm_num_groups: int = 32,
                 add_height_width_2x: Tuple[bool, bool, bool, bool] = (True, True, True, False),
                 add_frame_2x: Tuple[bool, bool, bool, bool] = (True, True, True, False),
-                
                  ):
         
         super().__init__()
@@ -186,15 +221,39 @@ class CausalDecoder(nn.Module):
                                      kernel_size=3,
                                      stride=1)
         
+        self.gradient_checkpointing = False
+        
 
     def forward(self, 
                 sample: torch.FloatTensor):
         
         sample = self.conv_in(sample)
-        sample = self.mid_block_layer(sample)
+        
+        if self.training and self.gradient_checkpointing:
 
-        for up_block in self.up_block_layers:
-            sample = up_block(sample)
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
+                return custom_forward
+            
+            sample = torch.utils.checkpoint.checkpoint(
+                create_custom_forward(self.mid_block_layer), sample,
+                use_reentrant=False
+            )
+
+            for up_block in self.up_block_layers:
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(up_block), sample,
+                    use_reentrant=False
+                )
+
+        else:
+
+            sample = self.mid_block_layer(sample)
+
+            for up_block in self.up_block_layers:
+                sample = up_block(sample)
+
 
         sample = self.conv_norm_out(sample)
         sample = self.conv_act(sample)
