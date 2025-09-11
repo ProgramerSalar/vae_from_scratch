@@ -160,31 +160,31 @@ class CausalVaeEncoder(nn.Module):
         sample = self.conv_in(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         if self.training and self.gradient_checkpointing:
-            pass 
+            
 
-            # def create_custom_forward(module):
-            #     def custom_forward(*inputs):
-            #         return module(*inputs)
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
 
-            #     return custom_forward
+                return custom_forward
 
-            # # down
-            # if is_torch_version(">=", "1.11.0"):
-            #     for down_block in self.down_blocks:
-            #         sample = torch.utils.checkpoint.checkpoint(
-            #             create_custom_forward(down_block), sample, is_init_image, 
-            #                 temporal_chunk, use_reentrant=False
-            #         )
-            #     # middle
-            #     sample = torch.utils.checkpoint.checkpoint(
-            #         create_custom_forward(self.mid_block), sample, is_init_image, 
-            #             temporal_chunk, use_reentrant=False
-            #     )
-            # else:
-            #     for down_block in self.down_blocks:
-            #         sample = torch.utils.checkpoint.checkpoint(create_custom_forward(down_block), sample, is_init_image, temporal_chunk)
-            #     # middle
-            #     sample = torch.utils.checkpoint.checkpoint(create_custom_forward(self.mid_block), sample, is_init_image, temporal_chunk)
+            # down
+            if is_torch_version(">=", "1.11.0"):
+                for down_block in self.down_blocks:
+                    sample = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(down_block), sample, is_init_image, 
+                            temporal_chunk, use_reentrant=False
+                    )
+                # middle
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(self.mid_block), sample, is_init_image, 
+                        temporal_chunk, use_reentrant=False
+                )
+            else:
+                for down_block in self.down_blocks:
+                    sample = torch.utils.checkpoint.checkpoint(create_custom_forward(down_block), sample, is_init_image, temporal_chunk)
+                # middle
+                sample = torch.utils.checkpoint.checkpoint(create_custom_forward(self.mid_block), sample, is_init_image, temporal_chunk)
 
         else:
             # down
