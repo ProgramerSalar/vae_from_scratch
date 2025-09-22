@@ -23,7 +23,53 @@ class LPIPS(nn.Module):
         self.lin3 = NetLinLayer(in_channels=self.channels[3], use_dropout=use_dropout)
         self.lin4 = NetLinLayer(in_channels=self.channels[4], use_dropout=use_dropout)
 
+    
+    def forward(self, 
+                input,
+                target):
+        
+        in0_input, in1_input =  (self.scaling_layer(input), self.scaling_layer(target))
+        outs0, outs1 = self.net(in0_input), self.net(in1_input)
 
+        feats0, feats1, diffs = {}, {}, {}
+        lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
+
+        for kk in range(len(self.channels)):
+            feats0[kk], feats1[kk] = normalize_tensor(outs0[kk]), normalize_tensor(outs1[kk])
+            diffs[kk] = (feats0[kk] - feats1[kk]) ** 2
+
+        res = [
+            spatial_average(x=lins[kk].model(diffs[kk]),
+                            keepdim=True) for kk in range(len(self.channels))
+            ]
+        
+        val = res[0]
+        for l in range(1, len(self.channels)):
+            val += res[l]
+
+        return val
+        
+
+
+
+
+
+
+
+def normalize_tensor(x,
+                     eps=1e-10):
+    
+    norm_factor = torch.sqrt(torch.sum(x**2, 
+                                       dim=1,
+                                       keepdim=True))
+    
+    return x / (norm_factor+eps)
+
+
+def spatial_average(x, keepdim=True):
+
+    return x.mean([2, 3],
+                  keepdim=keepdim)
 
 
 
@@ -108,4 +154,9 @@ class NetLinLayer(nn.Module):
 
 if __name__ == "__main__":
     lpips = LPIPS()
-    print(lpips)
+
+    input = torch.randn(2, 3, 256, 256)
+    target = torch.randn(2, 3, 256, 256)
+
+    out = lpips(input, target)
+    print(out)

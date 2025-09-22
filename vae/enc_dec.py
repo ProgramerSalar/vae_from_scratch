@@ -22,8 +22,8 @@ import torch.utils.checkpoint
 from dataclasses import dataclass
 from diffusers.utils import BaseOutput
 
-from .conv import CausalConv3d, CausalGroupNorm
-from .blocks import CausalBlock3d, CausalMiddleBlock3d, CausalUpperBlock
+from conv import CausalConv3d, CausalGroupNorm
+from blocks import CausalBlock3d, CausalMiddleBlock3d, CausalUpperBlock
 
 
 

@@ -18,7 +18,7 @@ from torch import nn
 from diffusers.models.attention_processor import Attention
 from einops import rearrange
 
-from .resnet import (
+from resnet import (
     CausalResnet3d,
     CausalHeightWidth2x,
     CausalFrame2x,

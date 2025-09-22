@@ -18,7 +18,7 @@ import torch
 from torch import nn 
 from einops import rearrange
 
-from .conv import CausalConv3d, CausalGroupNorm
+from conv import CausalConv3d, CausalGroupNorm
 
 class CausalResnet3d(nn.Module):
 
