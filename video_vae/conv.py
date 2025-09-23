@@ -20,6 +20,7 @@ from torch import nn
 from typing import Union, Tuple
 from torch.nn import functional as F
 from einops import rearrange
+from timm.models.layers import trunc_normal_
 
 
 class CausalConv3d(nn.Module):
@@ -71,6 +72,15 @@ class CausalConv3d(nn.Module):
                               padding=self.padding,         # default=0
                               dilation=self.dilation,       # default=0
                               **kwargs)
+        
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+            trunc_normal_(m.weight, std=.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
         
     
 
