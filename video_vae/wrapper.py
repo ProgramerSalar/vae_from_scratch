@@ -20,11 +20,12 @@ class CausalVideoVAELossWrapper(nn.Module):
                  interpolate=True,
                  add_discriminator=True,
                  freeze_encoder=False,
-                 load_loss_module=False,
+                 load_loss_module=True,
                  lpips_ckpt="vae/vgg_lpips.pth",
                  **kwargs):
         
         super().__init__()
+        self.disc_start = disc_start
 
         torch_dtype = torch.bfloat16 if model_dtype == "bf16" else torch.float32
         torch_dtype = torch.float16 if model_dtype == "fp16" else None
@@ -110,11 +111,36 @@ class CausalVideoVAELossWrapper(nn.Module):
         posterior, reconstruct = self.vae(sample=batch_x,
                                           freeze_encoder=self.freeze_encoder)
         
-        print(posterior, reconstruct)
+        # print(posterior, reconstruct)
         
         # The reconstruction loss 
-        # reconstruct_loss, rec_log = self.loss(inputs=batch_x,
-        #                                       )
+        reconstruct_loss, rec_log = self.loss(inputs=batch_x,
+                                              reconstructions=reconstruct,
+                                              posteriors=posterior,
+                                              optimizer_idx=0,
+                                              global_step=step,
+                                              last_layer=self.vae.get_last_layer())
+        # print(reconstruct_loss, rec_log)
+
+        if step < self.disc_start:
+            return reconstruct_loss, None, rec_log
+        
+
+        # The loss to train discriminator 
+        gan_loss, gan_log = self.loss(inputs=batch_x,
+                                      reconstructions=reconstruct,
+                                      posteriors=posterior,
+                                      optimizer_idx=1,
+                                      global_step=step,
+                                      last_layer=self.vae.get_last_layer())
+        
+        loss_log = {**rec_log, **gan_log}
+        
+        return reconstruct_loss, gan_loss, loss_log
+    
+
+        
+
         
 
 

@@ -121,6 +121,8 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         return DecoderOutput(sample=dec)
 
         
+    def get_last_layer(self):
+        return self.decoder.conv_out.conv.weight
         
 
     def forward(self,

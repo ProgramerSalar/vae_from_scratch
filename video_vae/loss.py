@@ -87,7 +87,24 @@ class LPIPSWithDiscriminator(nn.Module):
         self.disc_weight = disc_weight
         self.using_3d_discriminator = using_3d_discriminator
 
+    def calculate_adaptive_weight(self,
+                                  nll_loss,
+                                  g_loss,
+                                  last_layer=None):
+        
+        if last_layer is not None:
+            
+            nll_grads = torch.autograd.grad(nll_loss, last_layer, retain_graph=True)[0]
+            g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
+        else:
+            print(f"working in Progress....")
 
+        d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
+        d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
+        d_weight = d_weight * self.disc_weight
+        return d_weight
+
+        
 
 
     
@@ -126,7 +143,7 @@ class LPIPSWithDiscriminator(nn.Module):
             weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]   # tensor(1.9975, grad_fn=<DivBackward0>)
             nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]  # tensor(1.9975, grad_fn=<DivBackward0>)
             
-            kl_loss = posterior.kl()
+            kl_loss = posteriors.kl()
             kl_loss = torch.mean(kl_loss)
 
             disc_factor = adopt_weight(
@@ -136,7 +153,22 @@ class LPIPSWithDiscriminator(nn.Module):
             )   # 0.0
             
             if disc_factor > 0.0:
-                print("work in progress....")
+                # print("work in progress....")
+                if self.using_3d_discriminator:
+                    reconstructions = rearrange(reconstructions,
+                                                '(b t) c h w -> b c t h w', t=t)
+                    
+                logits_fake = self.discriminator(x=reconstructions.contiguous())
+                g_loss = -torch.mean(logits_fake)
+
+                try:
+                    d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
+                                                              g_loss=g_loss,
+                                                              last_layer=last_layer)
+
+                except RuntimeError:
+                    assert not self.training, "please come and see the {loss} file code. and solve the error."
+                    d_weight = torch.tensor(0.0)
 
             else:
                 d_weight = torch.tensor(0.0)
