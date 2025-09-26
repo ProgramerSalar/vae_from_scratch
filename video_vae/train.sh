@@ -37,6 +37,8 @@ torchrun --nproc_per_node $GPUS \
         --iters_per_epoch 2000 \
         --print_freq 40 \
         --save_ckpt_freq 1 \
-        --epochs 100
+        --opt adamw \
+        --epochs 100 
+        
 
 

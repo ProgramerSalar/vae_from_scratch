@@ -1,8 +1,9 @@
 import torch 
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler
 from torch.utils.data.dataloader import default_collate
+import time 
 
-from bucket_loader import Bucketeer
+# from bucket_loader import Bucketeer
 
 
 class IterLoader:
@@ -19,6 +20,8 @@ class IterLoader:
         super().__init__()
         self._dataloader = dataloader
         self.iter_loader = iter(self._dataloader)
+        self._epoch = epoch
+        self._use_distributed = use_distributed
 
     def __next__(self):
         try:
@@ -26,7 +29,22 @@ class IterLoader:
             data = next(self.iter_loader)
 
         except Exception as e:
-            print("Exception...")
+            self._epoch += 1
+            if hasattr(self._dataloader.sampler, "set_epoch") and self._use_distributed:
+                self._dataloader.sampler.set_epoch(self._epoch)
+            time.sleep(2)
+            self.iter_loader = iter(self._dataloader)
+            data = next(self.iter_loader)
+
+        return data 
+    
+
+    def __iter__(self):
+        return self 
+    
+    def __len__(self):
+        return len(self._dataloader)
+    
 
 
 
@@ -124,7 +142,55 @@ def create_mixed_dataloaders(
 
     """Image and video mixed training dataloader"""
 
-    print('work in progress...')
+    assert world_size is not None, "make sure `world_size` is not None"
+    assert rank is not None, "make sure `rank is not None"
+
+    image_gpus = max(1, int(world_size * image_mix_ratio))
+    if use_image_video_mixed_training:
+        video_gpus = world_size - image_gpus
+    else:
+        # only use video data 
+        video_gpus = world_size
+        image_gpus = 0 
+
+    if rank < video_gpus:
+        sampler = DistributedSampler(
+            dataset=dataset,
+            shuffle=True,
+            num_replicas=image_gpus,
+            rank=rank - video_gpus,
+            seed=epoch
+        )
+    else:
+        sampler = DistributedSampler(
+            dataset=dataset,
+            shuffle=True,
+            num_replicas=image_gpus,
+            rank=rank - video_gpus,
+            seed=epoch
+        )
+
+    loader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        pin_memory=True,
+        sampler=sampler,
+        collate_fn=default_collate,
+        drop_last=True
+    )
+
+    # TO make it infinite 
+    loader = IterLoader(dataloader=loader,
+                        use_distributed=True,
+                        epoch=epoch)
+
+    return loader
+
+
+
+
+
 
     
 

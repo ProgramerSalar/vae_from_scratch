@@ -8,13 +8,10 @@ from pathlib import Path
 
 
 
-from utils import init_distributed_mode, get_rank, get_world_size
+from utils import init_distributed_mode, get_rank, get_world_size, create_optimizer
 from wrapper import CausalVideoVAELossWrapper
-
-
-
-# from dataset.dataset_cls import ImageDataset
-# from dataset.dataloader import create_image_text_dataloader
+from dataset.dataset_cls import ImageDataset, VideoDataset
+from dataset.dataloader import create_mixed_dataloaders
 
 
 
@@ -179,12 +176,77 @@ def main(args):
         image_gpus = 0 
 
     if global_rank < video_gpus:
-        print("working...")
+        training_dataset = VideoDataset(anno_file=args.video_anno,
+                                        resolution=args.resolution,
+                                        max_frames=args.max_frames,
+                                        add_normalize=not args.not_add_normalize)
     else:
-        print("else condition is working...")
+        training_dataset = ImageDataset(anno_file=args.image_anno,
+                                        resolution=args.resolution,
+                                        max_frames=args.max_frames // 4,
+                                        add_normalize=not args.not_add_normalize)
+        
+
+    
+    data_loader_train = create_mixed_dataloaders(dataset=training_dataset,
+                                                 batch_size=args.batch_size,
+                                                 num_workers=args.num_workers,
+                                                 epoch=args.seed,
+                                                 world_size=world_size,
+                                                 rank=global_rank,
+                                                 image_mix_ratio=args.image_mix_ratio,
+                                                 use_image_video_mixed_training=args.use_image_video_mixed_training)
+    
 
 
+    torch.distributed.barrier()
+    model.to(device)
+    model_without_ddp = model 
 
+    n_learnable_parameters = sum(
+        p.numel() for p in model.parameters() if p.requires_grad
+    )
+
+    # for p in model.parameters():
+    #     if p.requires_grad:
+    #         n_learnable_parameters = sum(p.numel())
+
+    n_fix_parameters = sum(
+        p.numel() for p in model.parameters() if not p.requires_grad
+    )
+
+    # for p in model.parameters():
+    #     if p.requires_grad:
+    #         n_fix_parameters = sum(p.numel())
+
+    
+    # for name, p in model.named_buffers():
+    #     if not p.requires_grad:
+    #         print(f"name: >>>>>>>> {name}")
+
+    print(f"Total number of learnable parameters: {n_learnable_parameters / 1e6} Million")
+    print(f"Total number of fixed parameters in :{n_fix_parameters / 1e6} Million")
+
+    total_batch_size = args.batch_size * get_world_size()
+    print("LR = %.8f" % args.lr)
+    print("Min LR = %.8f" % args.min_lr)
+    print("Weight Decay = %.8f" % args.weight_decay)
+    print("Batch size = %d" % total_batch_size)
+    print(f"Number of training steps = {num_training_steps_per_epoch * args.epochs}")
+    print(f"Number of training examples per epoch = {total_batch_size * num_training_steps_per_epoch}")
+
+
+    optimizer = create_optimizer(args=args,
+                                 model=model_without_ddp.vae)
+    
+    optimzer_disc = create_optimizer(args=args,
+                                     model=model_without_ddp.loss.discriminator) if args.add_discriminator else None
+    
+
+    loss_scaler = 
+
+
+    
 
     
     
