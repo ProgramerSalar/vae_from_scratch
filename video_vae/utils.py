@@ -19,20 +19,20 @@ def init_distributed_mode(args,
     args.distributed = True 
     args.dist_backend = 'nccl'
     args.dist_url = "env://"
-    print(f"| distributed init (rank {args.local_rank}): {args.dist_url}, gpu: {args.device}",
+    print(f"| distributed init (rank {args.local_rank}): {args.dist_url}, gpu: {args.gpu}",
           flush=True)
     
 
     if init_pytorch_ddp:
         # Init DDP Group, for script without using accelerate framework.
-        torch.cuda.set_device(args.device)
+        torch.cuda.set_device(args.gpu)
         torch.distributed.init_process_group(backend=args.dist_backend,
                                              init_method=args.dist_url,
-                                             world_size=args.world,
-                                             rank=args.rank,
+                                             world_size=args.world_size,
+                                             rank=args.local_rank,  # rank
                                              timeout=timedelta(days=365))
         torch.distributed.barrier()
-        setup_for_distributed(args.rank == 0)
+        setup_for_distributed(args.local_rank == 0)
 
         
     

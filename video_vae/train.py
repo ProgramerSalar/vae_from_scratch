@@ -114,6 +114,7 @@ def get_args():
     parser.add_argument('--local_rank', default=-1, type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
+    parser.add_argument('--gpu', default=0, help='how much gpus have in you system')
 
     return parser.parse_args()
 
