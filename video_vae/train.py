@@ -4,9 +4,15 @@ import argparse
 import numpy as np 
 import random
 import torch.backends.cudnn as cudnn
+from pathlib import Path
 
-from utils import init_distributed_mode
+
+
+from utils import init_distributed_mode, get_rank, get_world_size
 from wrapper import CausalVideoVAELossWrapper
+
+
+
 # from dataset.dataset_cls import ImageDataset
 # from dataset.dataloader import create_image_text_dataloader
 
@@ -114,7 +120,7 @@ def get_args():
     parser.add_argument('--local_rank', default=-1, type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
-    parser.add_argument('--gpu', default=0, help='how much gpus have in you system')
+    
 
     return parser.parse_args()
 
@@ -143,7 +149,41 @@ def build_model(args):
     
 def main(args):
 
-    print(init_distributed_mode(args))
+    init_distributed_mode(args)
+
+    # if eabled distributed mutliple video clips to different divices 
+    device = torch.device(args.device)
+
+    # fix the seed for reproducibility 
+    seed = args.seed + get_rank()
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+    cudnn.benchmark = True
+    model = build_model(args)
+
+    world_size = get_world_size()
+    global_rank = get_rank()
+
+    num_training_steps_per_epoch = args.iters_per_epoch 
+    log_writer = None
+
+    # building dataset and dataloaders 
+    image_gpus = max(1, int(world_size * args.image_mix_ratio))
+    if args.use_image_video_mixed_training:
+        video_gpus = world_size - image_gpus
+    else:
+        # only use video data 
+        video_gpus = world_size
+        image_gpus = 0 
+
+    if global_rank < video_gpus:
+        print("working...")
+    else:
+        print("else condition is working...")
+
+
 
 
     
@@ -164,5 +204,12 @@ if __name__ == "__main__":
     # out = build_model(args=args)
     out = main(args)
     print(out)
+
+# --------------------------------------------------
+    ### <----- for training --------> 
+    # opts = get_args()
+    # if opts.output_dir:
+    #     Path(opts.output_dir).mkdir(parents=True, exist_ok=True)
+    # main(opts)
 
     

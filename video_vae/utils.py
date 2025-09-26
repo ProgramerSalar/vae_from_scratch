@@ -1,5 +1,6 @@
 import os, torch
 from datetime import datetime, timedelta
+import torch.distributed as distributed 
 
 def init_distributed_mode(args,
                           init_pytorch_ddp=True):
@@ -9,7 +10,10 @@ def init_distributed_mode(args,
         
         
     elif 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
-        print('else condition is working...')
+        # print('else condition is working...')
+        args.rank = int(os.environ["RANK"])
+        args.world_size = int(os.environ["WORLD_SIZE"])
+        args.gpu = int(os.environ["LOCAL_RANK"])
         
     else:
         print('Not using distributed mode')
@@ -19,7 +23,7 @@ def init_distributed_mode(args,
     args.distributed = True 
     args.dist_backend = 'nccl'
     args.dist_url = "env://"
-    print(f"| distributed init (rank {args.local_rank}): {args.dist_url}, gpu: {args.gpu}",
+    print(f"| distributed init (rank {args.rank}): {args.dist_url}, gpu: {args.gpu}",
           flush=True)
     
 
@@ -49,6 +53,32 @@ def setup_for_distributed(is_master):
             builtin_print(*args, **kwargs)
 
     __builtin__.print = print
+
+
+def is_dist_avail_and_initialized():
+    if not distributed.is_available():
+        return True
+
+    if not distributed.is_initialized():
+        return False
+    
+    return True
+
+
+
+
+def get_rank():
+    if not is_dist_avail_and_initialized():
+        return 0 
+    
+    return distributed.get_rank()
+
+
+def get_world_size():
+    if not is_dist_avail_and_initialized:
+        return 1 
+    return distributed.get_world_size()
+
 
 
 
