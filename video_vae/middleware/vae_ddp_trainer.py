@@ -9,7 +9,7 @@ import math, sys
 def train_one_epoch(
         model: torch.nn.Module,
         model_dtype: str,
-        data_laoder: Iterable,
+        data_loader: Iterable,
         optimizer: torch.optim.Optimizer,
         optimizer_disc: torch.optim.Optimizer,
         device: torch.device,
@@ -68,10 +68,10 @@ def train_one_epoch(
                 if lr_schedule_values_disc is not None:
                     param_group['lr'] = lr_schedule_values_disc[it] * param_group.get("lr_scale", 1.0)
 
-        samples = next(data_laoder)
+        samples = next(data_loader)
         samples['video'] = samples['video'].to(device, non_blocking=True)
 
-        with torch.amp.autocast(enabled=True, dtype=_dtype):
+        with torch.amp.autocast(enabled=True, dtype=_dtype, device_type="cuda"):
             rec_loss, gan_loss, log_loss = model(samples['video'], args.global_step, identifier=samples['identifier'])
 
         ############################################################################################################

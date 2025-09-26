@@ -6,6 +6,8 @@ import random
 import torch.backends.cudnn as cudnn
 from pathlib import Path
 import time 
+from datetime import timedelta
+import os, json
 
 
 from utils import ( 
@@ -15,7 +17,9 @@ from utils import (
     create_optimizer,
     NativeScalerWithGradNormCount,
     cosine_scheduler,
-    auto_load_model
+    auto_load_model,
+    is_main_process,
+    save_model
     )
 from middleware.vae_ddp_trainer import train_one_epoch
 from wrapper import CausalVideoVAELossWrapper
@@ -315,7 +319,45 @@ def main(args):
             iters_per_epoch=num_training_steps_per_epoch
         )
 
-        
+
+        if args.output_dir:
+            
+            if (epoch + 1) % args.save_ckpt_freq == 0 or epoch + 1 == args.epochs:
+                save_model(
+                    args=args,
+                    model=model,
+                    model_without_ddp=model_without_ddp,
+                    optimizer=optimizer,
+                    loss_scaler=loss_scaler,
+                    epoch=epoch,
+                    optimizer_disc=optimzer_disc,
+                    save_ckpt_freq=args.save_ckpt_freq
+                    
+                )
+
+            log_stats = {
+                    **{f'train_{k}': v
+                    for k, v in train_starts.items()},
+                'epoch': epoch,
+                'n_parameters': n_learnable_parameters
+
+            }
+
+        if args.out_dir and is_main_process():
+            if log_writer is not None:
+                log_writer.flush()
+
+            with open(os.path.join(args.output_dir, "log.txt"), 
+                      mode="a",
+                      encoding="utf-8") as f:
+                f.write(json.dumps(log_stats) + "\n")
+
+        total_time = time.time() - start_time
+        total_time_str = str(timedelta(seconds=int(total_time)))
+        print(f"Training time {total_time_str}")
+
+
+
 
 
 
