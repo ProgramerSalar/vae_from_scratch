@@ -5,10 +5,19 @@ import numpy as np
 import random
 import torch.backends.cudnn as cudnn
 from pathlib import Path
+import time 
 
 
-
-from utils import init_distributed_mode, get_rank, get_world_size, create_optimizer
+from utils import ( 
+    init_distributed_mode,
+    get_rank,
+    get_world_size,
+    create_optimizer,
+    NativeScalerWithGradNormCount,
+    cosine_scheduler,
+    auto_load_model
+    )
+from middleware.vae_ddp_trainer import train_one_epoch
 from wrapper import CausalVideoVAELossWrapper
 from dataset.dataset_cls import ImageDataset, VideoDataset
 from dataset.dataloader import create_mixed_dataloaders
@@ -243,10 +252,75 @@ def main(args):
                                      model=model_without_ddp.loss.discriminator) if args.add_discriminator else None
     
 
-    loss_scaler = 
+    loss_scaler = NativeScalerWithGradNormCount(enabled=True 
+                                                if args.model_dtype == "fp16" else False)
+    loss_scaler_disc = NativeScalerWithGradNormCount(enabled=True
+                                                     if args.model_dtype == "fp16" else False) if args.add_discriminator else None
 
 
     
+    print("Use step level LR and WD scheduler!")
+
+    lr_schedule_values = cosine_scheduler(
+        base_value=args.lr,
+        final_value=args.min_lr,
+        epochs=args.epochs,
+        nither_per_ep=num_training_steps_per_epoch,
+        warmup_epochs=args.warmup_epochs,
+        warmup_steps=args.warmup_steps
+    )
+
+    lr_schedule_values_disc = cosine_scheduler(
+        base_value=args.lr,
+        final_value=args.min_lr,
+        epochs=args.epochs,
+        nither_per_ep=num_training_steps_per_epoch,
+        warmup_epochs=args.warmup_epochs,
+        warmup_steps=args.warmup_steps
+    ) if args.add_discriminator else None
+
+
+    auto_load_model(
+        args=args,
+        model=model,
+        model_without_ddp=model_without_ddp,
+        optimizer=optimizer,
+        loss_scaler=loss_scaler,
+        optimizer_disc=optimzer_disc
+    )
+
+    start_time = time.time()
+    torch.distributed.barrier()
+
+    for epoch in range(args.start_epoch,
+                       args.epochs):
+        
+        train_starts = train_one_epoch(
+            model=model,
+            model_dtype=args.model_dtype,
+            data_loader=data_loader_train,
+            optimizer=optimizer,
+            optimizer_disc=optimzer_disc,
+            device=device,
+            epoch=epoch,
+            loss_scaler=loss_scaler,
+            loss_scaler_disc=loss_scaler_disc,
+            clip_grad=args.clip_grad,
+            log_writer=log_writer,
+            start_steps=epoch * num_training_steps_per_epoch,
+            lr_schedule_values=lr_schedule_values,
+            lr_schedule_values_disc=lr_schedule_values_disc,
+            args=args,
+            print_freq=args.print_freq,
+            iters_per_epoch=num_training_steps_per_epoch
+        )
+
+        
+
+
+
+
+
 
     
     

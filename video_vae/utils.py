@@ -1,6 +1,15 @@
 import os, torch
 from datetime import datetime, timedelta
 import torch.distributed as distributed 
+from torch import inf
+import numpy as np 
+import math, glob
+from pathlib import Path
+from collections import defaultdict, deque
+import time 
+
+
+
 
 import apex
 try:
@@ -141,14 +150,14 @@ def get_parameter_groups(model,
 
             parameter_group_names[group_name] = {
                 "weight_decay": this_weight_decay,
-                "param": [],
+                "params": [],
                 "lr": base_lr,
                 "lr_scale": scale
             }
 
             parameter_group_vars[group_name] = {
                 "weight_decay": this_weight_decay,
-                "param": [],
+                "params": [],
                 "lr": base_lr,
                 "lr_scale": scale
             }
@@ -177,6 +186,7 @@ def create_optimizer(args,
     opt_lower = args.opt.lower()
     weight_decay = args.weight_decay
 
+    skip = {}
     if skip_list is not None:
         skip = skip_list
 
@@ -239,8 +249,376 @@ def create_optimizer(args,
     return optimizer
 
 
+def get_grad_norm(paramters,
+                  norm_type: float = 2.0,
+                  layer_names=None,
+                  ) -> torch.Tensor:
+    
+    if isinstance(paramters, torch.Tensor):
+        paramters = [paramters]
 
 
+    paramters = [p for p in paramters if p.grad is not None]
+
+    norm_type = float(norm_type)
+    if len(paramters) == 0:
+        return torch.tensor(0.)
+    device = paramters[0].grad.device
+
+    if norm_type == inf:
+        total_norm = max(
+            p.grad.detach().abs().max().to(device)
+            for p in paramters
+        )
+
+    else:
+        layer_norm = torch.stack(tensors=(
+            [
+            torch.norm(input=p.grad.detach(),
+                        p=norm_type).to(device)
+            for p in paramters
+            ]
+        ))
+
+        total_norm = torch.norm(layer_norm, norm_type)
+
+        if layer_names is not None:
+            if torch.isnan(total_norm) \
+                or torch.isinf(total_norm) \
+                or total_norm > 1.0:
+
+                value_top, name_top = torch.topk(layer_norm, k=5)
+                print(f"Top norm value: {value_top}")
+                print(f"Top norm name: {[layer_names[i][7:] for i in name_top.tolist()]}")
+
+    return total_norm
+
+
+
+
+class NativeScalerWithGradNormCount:
+
+    state_dict_key = "amp_scaler"
+
+    def __init__(self,
+                 enabled=True):
+        
+        self._scaler = torch.amp.GradScaler(enabled=enabled)
+        
+    def __call__(self,
+                 loss,
+                 optimizer,
+                 clip_grad=False,
+                 parameters=None,
+                 create_graph=False,
+                 update_grad=True,
+                 layer_names=False):
+        
+        self._scaler.scale(loss).backward(create_graph=create_graph)
+
+        if update_grad:
+            if clip_grad is not None:
+                assert parameters is not None
+                # unscale the gradients of optimizers assigned params in-place
+                self._scaler.unscale_(optimizer=optimizer)
+                norm = torch.nn.utils.clip_grad_norm_(parameters=parameters,
+                                                      max_norm=clip_grad)
+                
+            else:
+                self._scaler.unscale_(optimizer=optimizer)
+                norm = get_grad_norm(paramters=parameters,
+                                     layer_names=layer_names)
+                
+            self._scaler.step(optimizer)
+            self._scaler.update()
+
+        else:
+            norm = None 
+
+        return norm 
+    
+
+    def state_dict(self):
+        return self._scaler.state_dict()
+    
+
+    def load_state_dict(self,
+                        state_dict):
+        self._scaler.load_state_dict(state_dict)
+
+
+
+
+def cosine_scheduler(base_value,
+                     final_value,
+                     epochs,
+                     nither_per_ep,
+                     warmup_epochs=0,
+                     start_warmup_value=0,
+                     warmup_steps=-1):
+    
+    warmup_schedule = np.array([])
+    warmup_iters = warmup_epochs * nither_per_ep
+
+    if warmup_steps > 0:
+        warmup_iters = warmup_steps
+
+    if warmup_epochs > 0:
+        warmup_schedule = np.linspace(start_warmup_value,
+                                      base_value,
+                                      warmup_iters)
+
+    iters = np.arange(epochs * nither_per_ep - warmup_iters)
+    schedule = np.array([final_value + 0.5 * (base_value - final_value) * (1 + math.cos(math.pi * i / (len(iters)))) for i in iters])
+
+    schedule = np.concatenate((warmup_schedule, schedule))
+    assert len(schedule) == epochs * nither_per_ep 
+    return schedule
+
+
+def auto_load_model(args,
+                    model,
+                    model_without_ddp,
+                    optimizer,
+                    loss_scaler,
+                    model_ema=None,
+                    optimizer_disc=None):
+    
+    output_dir = Path(args.output_dir)
+    if args.auto_resume and len(args.resume) == 0:
+        all_checkpoints = glob.glob(os.path.join(output_dir, "checkpoint.pth"))
+
+    else:
+        all_checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint-*.pth'))
+        
+        latest_ckpt = -1 
+        for ckpt in all_checkpoints:
+            t = ckpt.split('-')[-1].split('.')[0]
+            if t.isdigit():
+                latest_ckpt = max(int(t), latest_ckpt)
+
+        if latest_ckpt >= 0:
+            args.resume = os.path.join(output_dir, 'checkpoint-%d.pth' % latest_ckpt)
+
+        print(f"Auto resume checkpoint: {args.resume}")
+
+    
+    if args.resume:
+        print('work in progress...')
+
+
+class SmoothedValue(object):
+
+    """
+        Track a series of values and provide access to smoothed values over 
+        a window or the global series average.
+    """
+
+    def __init__(self,
+                 window_size=20,
+                 fmt=None):
+        
+        if fmt is None:
+            fmt = "{median: .4f} ({global_avg: .4f})"
+
+        self.deque = deque(maxlen=window_size)
+        self.total = 0.0 
+        self.count = 0 
+        self.fmt = fmt 
+
+    def update(self,
+               value,
+               n=1):
+        self.deque.append(value)
+        self.count += n 
+        self.total += value * n 
+
+    def synchronize_between_processes(self):
+
+        """warning: does not synchronize the deque!"""
+
+        if not is_dist_avail_and_initialized():
+            return 
+        
+        t = torch.tensor(data=[self.count,
+                               self.total],
+                        dtype=torch.float64,
+                        device='cuda')
+        
+        distributed.barrier()
+        distributed.all_reduce(t)
+        
+        t = t.tolist()
+        self.count = int(t[0])
+        self.total = t[1]
+
+
+    @property
+    def median(self):
+        d = torch.tensor(list(self.deque))
+        return d.median().item()
+    
+    @property
+    def avg(self):
+        d = torch.tensor(list(self.deque),
+                         dtype=torch.float32)
+        
+        return d.mean().item()
+    
+
+    @property
+    def global_avg(self):
+        return self.total / self.count
+    
+
+    @property
+    def max(self):
+        return max(self.deque)
+    
+
+    @property
+    def value(self):
+        return self.deque[-1]
+    
+
+    def __str__(self):
+        return self.fmt.format(
+            median=self.median,
+            avg=self.avg,
+            global_avg=self.global_avg,
+            max=self.max,
+            value=self.value
+        )
+
+
+
+class MetricLogger(object):
+
+    def __init__(self,
+                 delimiter="\t"):
+        
+        self.meters = defaultdict(SmoothedValue)
+        self.delimiter = delimiter
+
+
+    def update(self,
+               **kwargs):
+        
+        for k, v in kwargs.items():
+            for v in None:
+                continue
+
+            if isinstance(v, torch.Tensor):
+                v = v.item()
+
+            assert isinstance(v, (float, int))
+            self.meters[k].update(v)
+
+
+    def __getattr__(self, attr):
+
+        if attr in self.meters:
+            return self.meters[attr]
+        
+        if attr in self.__dict__:
+            return self.__dict__[attr]
+        
+        raise AttributeError(f"{type(self).__name__, attr} object has no attribute")
+    
+
+    def __str__(self):
+        loss_str = []
+
+        for name, meter in self.meters.items():
+            loss_str.append(
+                f"{name}: {str(meter)}"
+            )
+        
+        return self.delimiter.join(loss_str)
+    
+
+    def synchronize_between_processes(self):
+        for meter in self.meters.values():
+            meter.synchronize_between_processes()
+
+
+    def add_meter(self,
+                  name,
+                  meter):
+        
+        self.meters[name] = meter
+
+
+        
+    def log_every(self,
+                  iterable,
+                  print_freq,
+                  header=None):
+        
+        i = 0 
+        if not header:
+            header = ''
+
+        start_time = time.time()
+        end = time.time()
+
+        iter_time = SmoothedValue(fmt='{avg:.4f}')
+        data_time = SmoothedValue(fmt='{avg:.4f}')
+
+        space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
+        log_msg = [
+            header,
+            '[{0 ' + space_fmt + '}/{1}]',
+            'eta: {eta}',
+            '{meters}',
+            'time: {time}',
+            'data: {data}'
+        ]
+
+        if torch.cuda.is_available():
+            log_msg.append('max_mem: {memory: .0f}')
+
+        log_msg = self.delimiter.join(log_msg)
+        MB = 1024.0 * 1024.0 
+
+        for obj in iterable:
+            data_time.update(time.time() - end)
+            yield obj
+
+            iter_time.update(time.time() - end)
+
+            if i % print_freq == 0 or i == len(iterable) - 1:
+                eta_seconds = iter_time.global_avg * (len(iterable) - i)
+                eta_string = str(timedelta(seconds=int(eta_seconds)))
+
+                if torch.cuda.is_available():
+                    print(log_msg.format(
+                        i, 
+                        len(iterable), 
+                        eta=eta_string,
+                        meters=str(self),
+                        time=str(iter_time),
+                        data=str(data_time),
+                        memory=torch.cuda.max_memory_allocated() / MB
+                    ))
+                
+                else:
+                    print(log_msg.format(
+                        i,
+                        len(iterable),
+                        eta=eta_string,
+                        meters=str(self),
+                        time=str(iter_time),
+                        data=str(data_time)
+                    ))
+
+            i += 1 
+            end = time.time()
+
+        total_time = time.time() - start_time
+        total_time_str = str(timedelta(seconds=int(total_time)))
+
+        print(f"{header} Total time: {total_time_str} ({total_time / len(iterable):.4f})")
 
 
 
