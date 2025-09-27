@@ -89,7 +89,7 @@ def train_one_epoch(
             grad_norm = loss_scaler(rec_loss,
                                     optimizer,
                                     clip_grad=clip_grad,
-                                    parameters=model.module.vae.parameters(),
+                                    parameters=model.vae.parameters(),
                                     create_graph=is_second_order)
             
 

@@ -379,8 +379,8 @@ def main(args):
 
 if __name__ == "__main__":
     args = get_args()
-    # out = build_model(args=args)
-    out = main(args)
+    out = build_model(args=args)
+    # out = main(args)
     print(out)
 
 # --------------------------------------------------

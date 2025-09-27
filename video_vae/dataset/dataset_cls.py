@@ -392,8 +392,8 @@ class ImageDataset(Dataset):
             filtered_frames = filtered_frames.permute(1, 0, 2, 3)
 
             return {
-                'video': filtered_frames,
-                'identifier': 'image'
+                "video": filtered_frames,
+                "identifier": 'image'
             }
             
 

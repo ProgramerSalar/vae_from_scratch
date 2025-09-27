@@ -28,6 +28,8 @@ class IterLoader:
             
             data = next(self.iter_loader)
 
+        
+
         except Exception as e:
             self._epoch += 1
             if hasattr(self._dataloader.sampler, "set_epoch") and self._use_distributed:
@@ -35,6 +37,9 @@ class IterLoader:
             time.sleep(2)
             self.iter_loader = iter(self._dataloader)
             data = next(self.iter_loader)
+
+            
+            
 
         return data 
     
@@ -184,6 +189,7 @@ def create_mixed_dataloaders(
     loader = IterLoader(dataloader=loader,
                         use_distributed=True,
                         epoch=epoch)
+    
 
     return loader
 
@@ -205,11 +211,25 @@ if __name__ == "__main__":
     
 
     image_dataset = ImageDataset(anno_file="/home/manish/Desktop/projects/vae_from_scratch/annotation/image_text.jsonl")
+    # data_laoder = DataLoader(dataset=image_dataset,
+    #                          batch_size=2)
+    
+    # out = IterLoader(dataloader=data_laoder)
+    # print(f"out: {out.__next__()}")
 
-
-    out = create_image_text_dataloader(dataset=image_dataset,
-                                       batch_size=2,
-                                       num_workers=2,
-                                       use_distributed=False,
-                                       multi_aspect_ratio=False)
+    # -----------------------------------------------------------
+    out = create_mixed_dataloaders(dataset=image_dataset,
+                                   batch_size=2,
+                                   num_workers=2,
+                                   world_size=1,
+                                   rank=0)
     print(out)
+    
+
+
+    # out = create_image_text_dataloader(dataset=image_dataset,
+    #                                    batch_size=2,
+    #                                    num_workers=2,
+    #                                    use_distributed=False,
+    #                                    multi_aspect_ratio=False)
+    # print(out)

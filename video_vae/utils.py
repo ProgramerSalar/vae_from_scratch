@@ -509,7 +509,7 @@ class MetricLogger(object):
                **kwargs):
         
         for k, v in kwargs.items():
-            for v in None:
+            if v is None:
                 continue
 
             if isinstance(v, torch.Tensor):
@@ -572,15 +572,16 @@ class MetricLogger(object):
         space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
         log_msg = [
             header,
-            '[{0 ' + space_fmt + '}/{1}]',
+            '[{0' + space_fmt + '}/{1}]',
             'eta: {eta}',
             '{meters}',
             'time: {time}',
             'data: {data}'
         ]
 
+
         if torch.cuda.is_available():
-            log_msg.append('max_mem: {memory: .0f}')
+            log_msg.append('max_mem: {memory:.0f}')
 
         log_msg = self.delimiter.join(log_msg)
         MB = 1024.0 * 1024.0 
