@@ -77,10 +77,19 @@ class MetricLogger(object):
 
     
     def log_every(self,
-                  iterable, # the data source to loop over (e.g trainig data)
-                  print_freq,   # how often (in number of iterations) to print a log message.
-                  header=None   # An optional string to print at the start of epoch log line (e.g., "Epoch: [1]")
+                  iterable, 
+                  print_freq,  
+                  header=None  
                   ):
+        
+        """ 
+        Arranged the loop print 
+
+        Args:
+            iterable: the data source to loop over (e.g training data)
+            print_freq: how often (in number of iterations) to print a log message.
+            header: An optional string to print at the start of epoch log line (e.g., "Epoch: [1]")
+        """
         
         i = 0 
         if not header:
@@ -190,6 +199,10 @@ class SmoothedValue(object):
 
         it is partcularly useful for logging training progress, where you might want to see both the recent performance 
         (e.g., over the last 20 batches) and the overall performance since the begining.
+
+        Args:
+            window_size: max num of recent values to keep track
+            fmt: format string to control how the object's value is displayed when printed.
     """
 
     def __init__(self,
