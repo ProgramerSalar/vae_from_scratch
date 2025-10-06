@@ -17,6 +17,28 @@ def init_distributed_mode(args,
     else:
         SystemError("Distributed mode if not initialized.")
 
+    
+    # activate the distributed mode 
+    args.distributed = True 
+    args.dist_backend = 'nccl'
+    args.dist_url = "env://"
+
+    # initialized the distributed data parallel
+    if init_pytorch_ddp:
+        torch.cuda.set_device(args.gpu)
+        torch.distributed.init_process_group(backend=args.dist_backend,
+                                             init_method=args.dist_url,
+                                             world_size=args.world_size,
+                                             rank=args.rank,
+                                             timeout=timedelta(days=365))
+        torch.distributed.barrier()
+        
+
+
+
+
+
+
 
     
 

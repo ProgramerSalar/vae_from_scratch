@@ -135,70 +135,48 @@ def _cp_pass_from_previous_rank(input_,
     if kernel_size == 1:
         return input_
     
-    group = get_context_parallel_group()    # group of the gpu
-    cp_rank = get_context_parallel_rank()   # rank of the gpu
-    cp_group_rank = get_context_parallel_group_rank()   #  group rank of the gpu
-    cp_world_size = get_context_parallel_world_size()   #  world size of the gpu
+    group = get_context_parallel_group()    # 1
+    cp_rank = get_context_parallel_rank()   # 0
+    cp_group_rank = get_context_parallel_group_rank()   #  1
+    cp_world_size = get_context_parallel_world_size()   #  1
 
-    print(f"function [_cp_pass_from_previous_rank] cp_rank: {cp_rank}, input_size: {input_.shape}")
+    print(f"group: {group}, cp_rank: {cp_rank}, cp_group_rank: {cp_group_rank}, cp_world_size: {cp_world_size}")
 
-    global_rank = torch.distributed.get_rank()
-    global_world_size = torch.distributed.get_world_size()
+    global_rank = torch.distributed.get_rank() # 0 
+    global_world_size = torch.distributed.get_world_size()  # 1 
 
-    # 2. Transpose target dimension
-    # [batch_size, channels, time, height, width] -> [time, channels, batch_size, height, width]
+    # [8, 3, 2, 256, 256]
     input_ = input_.transpose(0, dim)
 
-    # 3. Determine communication rank.
-    send_rank = global_rank + 1 
-    recv_rank = global_rank - 1 # [-1, 0, 1, 2]
-
-    # this condition is not work bcz the `rank` and the `world_size` is not get to same number
+    send_rank = global_rank + 1  # 1
+    recv_rank = global_rank - 1  # -1 
+    
+    # 1 % 1 == 0
     if send_rank % cp_world_size == 0:
-        send_rank -= cp_group_rank
+      send_rank -= cp_group_rank  # 1 - 1 = 0
 
-    # [-1 % 4 == 3], [0 % 4 == 3], [1 % 4 == 3], [2 % 4 == 3]
-    # this conditionis not working.
+    # [-1 % 1 = 0] ==[ 1 - 1 = 0]
     if recv_rank % cp_world_size == cp_world_size - 1:
-        recv_rank += cp_world_size
+      recv_rank += cp_world_size #  -1 + 1 = 0
 
+    # -3 + 1 = -2 [times, channels, batch, height, width]
+    recv_buffer = torch.empty_like(input=input_[-kernel_size + 1:]).contiguous()
 
-    recv_buffer = torch.empty_like(input=input_[-kernel_size + 1 :]).contiguous()
-
-    # [0, 1, 2, 3] [3]
-    # 4. Asynchronouns communications
+    # 0 < [1 -1 = 0]
     if cp_rank < cp_world_size -1:
-        req_send = torch.distributed.isend(tensor=input_[-kernel_size + 1 :].contiguous(),
-                                           dst=send_rank,
-                                           group=group)
-    
-    if cp_rank > 0:
-        req_recv = torch.distributed.irecv(tensor=recv_buffer,
-                                           src=recv_rank,
-                                           group=group)
-        
-    
-    # 5. combine the data
-    if cp_rank == 0:
-        input_ = torch.cat(
-            tensors=[
-                torch.zeros_like(input=input_[:1])
-            ] * (kernel_size - 1) * [input_],
-            dim=0
-        )
+      req_send = torch.distributed
 
-    else:
-        req_recv.wait()
-        input_ = torch.cat(tensors=[
-            recv_buffer, input_
-        ], dim=0)
-
-    # Restore original dimension
-    input_ = input_.transpose(0, dim).contiguous()
-    
-    return input_
 
     
+
+
+
+
+
+
+
+
+
 
 def _drop_from_previous_rank(input_,
                              dim,
@@ -208,28 +186,6 @@ def _drop_from_previous_rank(input_,
     input_ = input_.transpose(0, dim)[kernel_size - 1 :].transpose(0, dim)
     return input_
 
-
-
-
-if __name__ == "__main__":
-
-    from train.args import get_args
-    from start_distributed_mode import init_distributed_mode
-
-    def test(args):
-        init_distributed_mode(args=args)
-
-
-    test(args=get_args)
-
-
-
-    x = torch.randn(2, 3, 8, 256, 256)
-    out = context_parallel_pass_from_previous_rank(input_=x,
-                                                   dim=2,
-                                                   kernel_size=3)
-    
-    print(out)
 
 
 

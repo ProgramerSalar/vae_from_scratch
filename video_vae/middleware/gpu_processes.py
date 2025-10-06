@@ -106,3 +106,35 @@ def get_context_parallel_world_size():
     assert _CONTEXT_PARALLEL_SIZE is not None, "context parallel size is not None."
 
     return _CONTEXT_PARALLEL_SIZE
+
+
+
+
+
+def initialized_context_parallel(context_parallel_size):
+
+    global _CONTEXT_PARALLEL_GROUP
+    global _CONTEXT_PARALLEL_SIZE
+
+    assert _CONTEXT_PARALLEL_GROUP is None, "context parallel group is already initialized."
+    _CONTEXT_PARALLEL_SIZE = context_parallel_size
+
+    rank = torch.distributed.get_rank() # 0
+    world_size = torch.distributed.get_world_size() # 1
+
+    # print(f"[initialized_context_parallel] what is the rank: {rank}, world_size: {world_size}")
+
+    for i in range(0, world_size, context_parallel_size):
+      # print(f">>>>>> {i}")  # 0
+      # print(f"context_parallel_size: {context_parallel_size}") # 1
+
+        ranks = range(i, i + context_parallel_size)  # [0, 1]
+        group = torch.distributed.new_group(ranks)
+
+        # print(f"what is the group: {group}")
+
+        if rank in ranks:
+          _CONTEXT_PARALLEL_GROUP = group
+          break
+
+
