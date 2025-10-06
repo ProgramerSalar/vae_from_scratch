@@ -44,8 +44,8 @@ def get_context_parallel_rank():
 
     assert _CONTEXT_PARALLEL_SIZE is not None, "make sure world_size of the gpu does not None."
 
-    rank = get_rank()
-    cp_rank = rank % _CONTEXT_PARALLEL_SIZE     
+    cp_rank = get_rank()
+    # cp_rank = rank % _CONTEXT_PARALLEL_SIZE     
 
     return cp_rank
 
@@ -96,6 +96,7 @@ def get_context_parallel_group_rank():
     assert _CONTEXT_PARALLEL_SIZE is not None, "context parllel size is not None."
 
     rank = get_rank()
+    # cp_group_rank = rank // _CONTEXT_PARALLEL_SIZE
     cp_group_rank = rank // _CONTEXT_PARALLEL_SIZE
 
     return cp_group_rank

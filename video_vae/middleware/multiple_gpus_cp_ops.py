@@ -139,7 +139,7 @@ def _cp_pass_from_previous_rank(input_,
     cp_group_rank = get_context_parallel_group_rank()   #  1
     cp_world_size = get_context_parallel_world_size()   #  1
 
-    print(f"group: {group}, cp_rank: {cp_rank}, cp_group_rank: {cp_group_rank}, cp_world_size: {cp_world_size}")
+    # print(f"group: {group}, cp_rank: {cp_rank}, cp_group_rank: {cp_group_rank}, cp_world_size: {cp_world_size}")
 
     global_rank = torch.distributed.get_rank() # 0 
     global_world_size = torch.distributed.get_world_size()  # 1 

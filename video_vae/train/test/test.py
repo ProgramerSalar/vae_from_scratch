@@ -5,8 +5,8 @@ sys.path.append('/content/vae_from_scratch/video_vae')
 
 from args import get_args
 from middleware.start_distributed_mode import init_distributed_mode
-from video_vae.middleware.multiple_gpus_cp_ops import context_parallel_pass_from_previous_rank, _cp_pass_from_previous_rank
 from middleware.gpu_processes import initialized_context_parallel
+from vae.conv import CausalConv3d
 
 
 def test_train(args):
@@ -18,11 +18,13 @@ def test_train(args):
         initialized_context_parallel(context_parallel_size=args.context_size)
 
     x = torch.randn(2, 3, 8, 256, 256)
-    out = context_parallel_pass_from_previous_rank(input_=x,
-                                                   dim=2,
-                                                   kernel_size=3)
+    CausalConv3d(in_channels=3, 
+                 out_channels=3,
+                )
     
-    print(out)
+    
+    
+    
 
 
 if __name__ == "__main__":

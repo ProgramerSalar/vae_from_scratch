@@ -7,7 +7,7 @@ from middleware.gpu_processes import (
     get_context_parallel_rank
 )
 
-from video_vae.middleware.multiple_gpus_cp_ops import context_parallel_pass_from_previous_rank
+from middleware.single_gpu_cp_ops import context_parallel_pass_from_previous_rank
 
 
 
@@ -35,6 +35,10 @@ class CausalConv3d(nn.Module):
         self.time_kernel_size, self.height_kernel_size, self.width_kernel_size = self.kernel_size
         self.dilation = 1 
 
+        width_pad = self.width_kernel_size // 2
+        height_pad = self.height_kernel_size // 2
+        self.time_uncausal_padding = (width_pad, width_pad, height_pad, height_pad, 0, 0)
+
 
         self.conv = nn.Conv3d(in_channels=in_channels,
                               out_channels=out_channels,
@@ -58,6 +62,14 @@ class CausalConv3d(nn.Module):
             x = context_parallel_pass_from_previous_rank(input_=x,
                                                          dim=2,
                                                          kernel_size=self.time_kernel_size)
+            
+        
+        x = torch.nn.functional.pad(input=x,
+                                    pad=self.time_uncausal_padding, 
+                                    mode=self.padding_mode)
+        
+        if cp_rank != 0:
+            pass 
 
         
         
