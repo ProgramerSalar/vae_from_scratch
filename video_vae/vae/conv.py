@@ -7,7 +7,7 @@ from middleware.gpu_processes import (
     get_context_parallel_rank
 )
 
-from middleware.context_parallel_operation import context_parallel_pass_from_previous_rank
+from video_vae.middleware.multiple_gpus_cp_ops import context_parallel_pass_from_previous_rank
 
 
 

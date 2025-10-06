@@ -5,7 +5,7 @@ sys.path.append('/content/vae_from_scratch/video_vae')
 
 from args import get_args
 from middleware.start_distributed_mode import init_distributed_mode
-from middleware.context_parallel_operation import context_parallel_pass_from_previous_rank, _cp_pass_from_previous_rank
+from video_vae.middleware.multiple_gpus_cp_ops import context_parallel_pass_from_previous_rank, _cp_pass_from_previous_rank
 from middleware.gpu_processes import initialized_context_parallel
 
 

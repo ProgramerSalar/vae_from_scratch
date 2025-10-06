@@ -21,7 +21,6 @@ def context_parallel_pass_from_previous_rank(input_,
 class _context_parallel_conv_pass_from_prev_rank(torch.autograd.Function):
 
     
-
     @staticmethod
     def forward(ctx, input_, dim, kernel_size):
 
@@ -36,7 +35,7 @@ class _context_parallel_conv_pass_from_prev_rank(torch.autograd.Function):
                 @staticmethod
                 def forward(ctx, input_tensor, other_arg):
                     # Perform the forward computation
-                    output = input_tensor * other_arg
+                    ooutput = input_tensor * ther_arg
                     # Save tensors needed for backward pass
                     ctx.save_for_backward(input_tensor, other_arg)
                     return output
@@ -145,38 +144,38 @@ def _cp_pass_from_previous_rank(input_,
     global_rank = torch.distributed.get_rank() # 0 
     global_world_size = torch.distributed.get_world_size()  # 1 
 
-    # [8, 3, 2, 256, 256]
+    # [2, 3, 8, 256, 256] -> [8, 3, 2, 256, 256]
     input_ = input_.transpose(0, dim)
 
     send_rank = global_rank + 1  # 1
     recv_rank = global_rank - 1  # -1 
     
-    # 1 % 1 == 0
+    # 1 % 1 == 0 [working...]
     if send_rank % cp_world_size == 0:
       send_rank -= cp_group_rank  # 1 - 1 = 0
 
-    # [-1 % 1 = 0] ==[ 1 - 1 = 0]
+    # [-1 % 1 = 0] ==[ 1 - 1 = 0] [working...]
     if recv_rank % cp_world_size == cp_world_size - 1:
       recv_rank += cp_world_size #  -1 + 1 = 0
 
     # -3 + 1 = -2 [times, channels, batch, height, width]
     recv_buffer = torch.empty_like(input=input_[-kernel_size + 1:]).contiguous()
 
-    # 0 < [1 -1 = 0] 
+    # 0 < [1 -1 = 0] [not working...]
     # this conidtion has work when more than one gpu.
     if cp_rank < cp_world_size -1:
       req_send = torch.distributed.isend(tensor=input_[-kernel_size + 1:].contiguous(),
                                         dst=send_rank,
                                         group=group)
 
-    # 0 > 0 
+    # 0 > 0 [not working...]
     # this conidtion has work when more than one gpu.
     if cp_rank > 0:
       req_recv = torch.distributed.irecv(tensor=recv_buffer,
                                           src=recv_rank,
                                           group=group)
 
-    # 0 = 0 
+    # 0 = 0 [working...]
     # torch.Size([8, 3, 2, 256, 256] -> torch.Size([10, 3, 2, 256, 256]
     if cp_rank == 0:
       input_ = torch.cat([torch.zeros_like(input_[:1])] * (kernel_size - 1) + [input_],
