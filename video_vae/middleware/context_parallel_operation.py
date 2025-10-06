@@ -211,6 +211,13 @@ def _drop_from_previous_rank(input_,
 
 
 
-        
+if __name__ == "__main__":
+    x = torch.randn(2, 3, 8, 256, 256)
+    out = context_parallel_pass_from_previous_rank(input_=x,
+                                                   dim=2,
+                                                   kernel_size=3)
+    
+    print(out)
+
 
 

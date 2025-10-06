@@ -7,6 +7,8 @@ from middleware.gpu_processes import (
     get_context_parallel_rank
 )
 
+from middleware.context_parallel_operation import context_parallel_pass_from_previous_rank
+
 
 
 
@@ -53,7 +55,9 @@ class CausalConv3d(nn.Module):
             print('work in progress...')
 
         else:
-            x = 
+            x = context_parallel_pass_from_previous_rank(input_=x,
+                                                         dim=2,
+                                                         kernel_size=self.time_kernel_size)
 
         
         
