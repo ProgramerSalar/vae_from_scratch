@@ -82,6 +82,8 @@ def get_context_parallel_group():
 
     """filter the context parallel group"""
 
+    print(f"i want to know that what is output havae [_CONTEXT_PARLLAL_GROUP]: {_CONTEXT_PARALLEL_GROUP}")
+
     assert _CONTEXT_PARALLEL_GROUP is not None, "context parallel group is not initialized."
 
     return _CONTEXT_PARALLEL_GROUP

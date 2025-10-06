@@ -212,6 +212,18 @@ def _drop_from_previous_rank(input_,
 
 
 if __name__ == "__main__":
+
+    from train.args import get_args
+    from start_distributed_mode import init_distributed_mode
+
+    def test(args):
+        init_distributed_mode(args=args)
+
+
+    test(args=get_args)
+
+
+
     x = torch.randn(2, 3, 8, 256, 256)
     out = context_parallel_pass_from_previous_rank(input_=x,
                                                    dim=2,
