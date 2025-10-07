@@ -67,19 +67,20 @@ class CausalConv3d(nn.Module):
             print('work in progress...')
 
         else:
+            # [2, 3, 8, 256, 256] -> 
             x = context_parallel_pass_from_previous_rank(input_=x,
                                                          dim=2,
                                                          kernel_size=self.time_kernel_size)
             
         
-        x = torch.nn.functional.pad(input=x,
-                                    pad=self.time_uncausal_padding, 
-                                    mode=self.padding_mode)
+        # x = torch.nn.functional.pad(input=x,
+        #                             pad=self.time_uncausal_padding, 
+        #                             mode=self.padding_mode)
         
         
 
-        x = self.conv(x)
-        return x 
+        # x = self.conv(x)
+        # return x 
 
         
         
@@ -88,22 +89,22 @@ class CausalConv3d(nn.Module):
                 x: torch.FloatTensor,
                 ) -> torch.FloatTensor:
         
-        # x = [32, 3, 8, 256, 256]
-
+        
+        # [2, 3, 8, 256, 256] -> [2, 3, 3, 258, 258]
         if is_context_parallel_initialized():
             return self.context_parallel_forward(x)
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
-        
+        # [2, 3, 8, 256, 256] -> torch.Size([2, 3, 3, 258, 258]
         x = torch.nn.functional.pad(input=x,
-                                    pad=self.time_causal_padding,
+                                    pad=self.time_causal_padding, # (1, 1, 1, 1, 2, 0)
                                     mode=padding_mode)
         
-        x = self.conv(x)
+        
         return x 
     
-    
+
             
         
 

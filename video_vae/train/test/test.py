@@ -22,9 +22,10 @@ def test_train(args):
                  out_channels=3,
                 )
     
+    model = model(x)
+    print(model.shape)
     
-    for i in range(10):
-        model(x)
+    
     
     
     
