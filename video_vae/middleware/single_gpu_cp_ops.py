@@ -88,15 +88,17 @@ def _cp_pass_from_previous_rank(input_,
         return input_
     
     # [2, 3, 8, 256, 256] -> [8, 3, 2, 256, 256]
-    input_ = input_.transpose(0, dim)
+    input = input_.transpose(0, dim)
 
-    # 0 = 0 [working...]
-    # torch.Size([8, 3, 2, 256, 256] -> torch.Size([10, 3, 2, 256, 256]
-    # only first row of matrix convert to zeros bcz add the padding first row of matrix tensor.
-    input_ = torch.zeros_like(input_[:1])
-    input_ = torch.cat([input_] * (kernel_size - 1) + [input_],
-                       dim=0)
     
+    
+    # only first row of matrix convert to zeros bcz add the padding first row of matrix tensor.
+    # torch.Size([8, 3, 2, 256, 256] -> torch.Size([1, 3, 2, 256, 256]
+    input_ = torch.zeros_like(input[:1])
+    
+    # torch.size([1, 3, 2, 256, 256]) -> torch.size([10, 3, 2, 256, 256])
+    input_ = torch.cat([input_] * (kernel_size - 1) + [input],
+                       dim=0)
     
     # torch.Size([10, 3, 2, 256, 256] -> torch.Size([2, 3, 10, 256, 256])
     input_ = input_.transpose(0, dim).contiguous()

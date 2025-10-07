@@ -2,6 +2,9 @@ import torch
 from torch import nn 
 from typing import Union, Tuple
 from collections import deque
+from timm.layers.weight_init import trunc_normal_
+from torch import Tensor
+from einops import rearrange
 
 from middleware.gpu_processes import (
     is_context_parallel_initialized,
@@ -51,7 +54,7 @@ class CausalConv3d(nn.Module):
                               out_channels=out_channels,
                               kernel_size=self.kernel_size,
                               stride=self.stride,
-                              padding=self.padding,
+                              padding=0,
                               dilation=self.dilation,
                               **kwargs)
         self.cache_first_feat = deque()
@@ -67,20 +70,33 @@ class CausalConv3d(nn.Module):
             print('work in progress...')
 
         else:
-            # [2, 3, 8, 256, 256] -> 
+            # [2, 3, 8, 256, 256] -> [2, 3, 10, 256, 256]
             x = context_parallel_pass_from_previous_rank(input_=x,
                                                          dim=2,
                                                          kernel_size=self.time_kernel_size)
             
+        # [2, 3, 10, 256, 256] -> [2, 3, 10, 258, 258]
+        x = torch.nn.functional.pad(input=x,
+                                    pad=self.time_uncausal_padding, 
+                                    mode=self.padding_mode)
         
-        # x = torch.nn.functional.pad(input=x,
-        #                             pad=self.time_uncausal_padding, 
-        #                             mode=self.padding_mode)
         
-        
+        # [2, 3, 10, 258, 258] -> [2, 3, 8, 256, 256]
+        x = self.conv(x)
+        return x 
+    
 
-        # x = self.conv(x)
-        # return x 
+    def _init_weights(self, m):
+
+        if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+            trunc_normal_(tensor=m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+            nn.init.constant_(tensor=m.bias, val=0)
+            nn.init.constant_(tensor=m.weight, val=1.0)
+
 
         
         
@@ -90,30 +106,58 @@ class CausalConv3d(nn.Module):
                 ) -> torch.FloatTensor:
         
         
-        # [2, 3, 8, 256, 256] -> [2, 3, 3, 258, 258]
+        # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
         if is_context_parallel_initialized():
             return self.context_parallel_forward(x)
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
-        # [2, 3, 8, 256, 256] -> torch.Size([2, 3, 3, 258, 258]
+        # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
         x = torch.nn.functional.pad(input=x,
                                     pad=self.time_causal_padding, # (1, 1, 1, 1, 2, 0)
                                     mode=padding_mode)
+        
+        # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
+        x = self.conv(x)
+
         
         
         return x 
     
 
+
+class CausalGroupNorm(nn.Module):
+
+    def __init__(self,
+                 in_channels:int,
+                 num_groups:int = 32, 
+                 eps: float= 1e-5):
+        
+        """ 
+            This is custom normalization.
             
+            in_channels (`int`): number of channels expected in input
+            num_groups (`int`): number of groups to separate the channels into 
+            eps (`float`): a value added to the denominator for numerical stability. Default: 1e-5
+        """
+        super().__init__()
+
+        self.group_norm = nn.GroupNorm(num_groups=num_groups,
+                                       num_channels=in_channels,
+                                       eps=eps)
+
+    def forward(self, 
+                x: torch.FloatTensor) -> torch.FloatTensor:
         
 
-        
-                
-        
-        
-        
+        b, c, t, h, w = x.shape
+        # x = x.view(b*t, c, h, w)
+        x = rearrange(x, 
+                      'b c t h w -> (b t) c h w', t=t)
+        x = self.group_norm(x)
 
+        # x = x.view(b, c, t, h, w)
+        x = rearrange(x,
+                      '(b t) c h w -> b c t h w', t=t)
 
-
-
+        return x 

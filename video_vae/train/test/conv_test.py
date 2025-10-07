@@ -1,11 +1,12 @@
 import torch 
+
 import sys 
 sys.path.append('/content/vae_from_scratch/video_vae')
 
 from train.args import get_args
 from middleware.start_distributed_mode import init_distributed_mode
 from middleware.gpu_processes import initialized_context_parallel
-from vae.enc_dec import CausalEncoder
+from vae.conv import CausalConv3d
 
 
 def test_train(args):
@@ -17,11 +18,15 @@ def test_train(args):
         initialized_context_parallel(context_parallel_size=args.context_size)
 
     x = torch.randn(2, 3, 8, 256, 256)
-    model = CausalEncoder(in_channels=3,
-                          out_channels=3)
+    model = CausalConv3d(in_channels=3, 
+                 out_channels=3,
+                )
+    
+    model = model(x)
+    print(model.shape)
     
     
-    print(model)
+    
     
     
     
