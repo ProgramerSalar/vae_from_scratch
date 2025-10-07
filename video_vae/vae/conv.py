@@ -41,10 +41,10 @@ class CausalConv3d(nn.Module):
         height_pad = self.height_kernel_size // 2
         self.time_uncausal_padding = (width_pad, width_pad, height_pad, height_pad, 0, 0)
 
-        time_pad = self.dilation * (self.time_kernel_size -1)
-        self.time_causal_padding = (width_pad, width_pad, height_pad, height_pad, time_pad, 0)
+        self.time_pad = self.dilation * (self.time_kernel_size -1)
+        self.time_causal_padding = (width_pad, width_pad, height_pad, height_pad, self.time_pad, 0)
 
-        self.temporal_stride = stride[0]
+        self.temporal_stride = self.stride[0]
 
 
         self.conv = nn.Conv3d(in_channels=in_channels,
@@ -76,9 +76,7 @@ class CausalConv3d(nn.Module):
                                     pad=self.time_uncausal_padding, 
                                     mode=self.padding_mode)
         
-        if cp_rank != 0:
-            if self.temporal_stride == 2 and self.time_kernel_size == 3:
-                x = x[:, :, 1:]
+        
 
         x = self.conv(x)
         return x 
@@ -88,8 +86,6 @@ class CausalConv3d(nn.Module):
 
     def forward(self, 
                 x: torch.FloatTensor,
-                is_init_image=True,
-                temporal_chunk=False
                 ) -> torch.FloatTensor:
         
         # x = [32, 3, 8, 256, 256]
@@ -99,25 +95,19 @@ class CausalConv3d(nn.Module):
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
-        if not temporal_chunk:
-            x = torch.nn.functional.pad(input=x,
-                                        pad=self.time_causal_padding,
-                                        mode=padding_mode)
+        
+        x = torch.nn.functional.pad(input=x,
+                                    pad=self.time_causal_padding,
+                                    mode=padding_mode)
+        
+        x = self.conv(x)
+        return x 
+    
+    
             
-        else:
-            assert not self.training, "The feature cache should not be used in training."
-            if is_init_image:
-                # encode first chunk 
-                x = torch.nn.functional.pad(input=x,
-                                            pad=self.time_causal_padding,
-                                            mode=padding_mode)
-                self._clear_context_parallel_cache()
-                self.cache_first_feat.append(x[:, :, -2:].clone().detach())
+        
 
-            else:
-                x = torch.nn.functional.pad(input=x,
-                                            pad=self.time_uncausal_padding,
-                                            mode=padding_mode)
+        
                 
         
         

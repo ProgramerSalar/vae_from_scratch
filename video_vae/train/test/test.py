@@ -18,9 +18,13 @@ def test_train(args):
         initialized_context_parallel(context_parallel_size=args.context_size)
 
     x = torch.randn(2, 3, 8, 256, 256)
-    CausalConv3d(in_channels=3, 
+    model = CausalConv3d(in_channels=3, 
                  out_channels=3,
                 )
+    
+    
+    for i in range(10):
+        model(x)
     
     
     
