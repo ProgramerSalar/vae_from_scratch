@@ -16,9 +16,9 @@ def test_train(args):
     if args.use_context_parallel:
         initialized_context_parallel(context_parallel_size=args.context_size)
 
-    x = torch.randn(2, 3, 8, 256, 256)
+    x = torch.randn(2, 3, 8, 256, 256).to("cuda:0")
     model = CausalEncoder(in_channels=3,
-                          out_channels=3)
+                          out_channels=3).to("cuda:0")
     
     
     print(model)
