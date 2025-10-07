@@ -3,7 +3,7 @@ import torch
 import sys 
 sys.path.append('/content/vae_from_scratch/video_vae')
 
-from args import get_args
+from train.args import get_args
 from middleware.start_distributed_mode import init_distributed_mode
 from middleware.gpu_processes import initialized_context_parallel
 from vae.conv import CausalConv3d

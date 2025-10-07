@@ -154,7 +154,7 @@ def _cp_pass_from_previous_rank(input_,
     if send_rank % cp_world_size == 0:
       send_rank -= cp_group_rank  # 1 - 1 = 0
 
-    # [-1 % 1 = 0] ==[ 1 - 1 = 0] [working...]
+    # [-1 % 1 = 0] == [ 1 - 1 = 0] [working...]
     if recv_rank % cp_world_size == cp_world_size - 1:
       recv_rank += cp_world_size #  -1 + 1 = 0
 
