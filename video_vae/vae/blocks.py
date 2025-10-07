@@ -1,7 +1,9 @@
 import torch 
 from torch import nn 
+from diffusers.models.attention_processor import Attention
+from einops import rearrange
 
-from resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x
+from .resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x
 
 class CausalDownBlock3d(nn.Module):
 
@@ -70,4 +72,74 @@ class CausalDownBlock3d(nn.Module):
 
 
 
+class CausalMiddleBlock3d(nn.Module):
+
+    def __init__(self,
+                 in_channels: int,
+                 attention_head_dim: int = 512,
+                 norm_num_groups: int = 32,
+                 dropout: bool = 0.0,
+                 scale_factor: bool = 1.0,
+                 eps: float = 1e-5):
         
+        super().__init__()
+
+        resnets = [
+            CausalResnetBlock3D(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                norm_num_groups=norm_num_groups,
+                dropout=dropout,
+                scale_factor=scale_factor,
+                eps=eps
+            )
+        ]
+
+        attentions = []
+        for _ in range(1):
+            attentions.append(
+                Attention(query_dim=in_channels,
+                          heads=in_channels // attention_head_dim,
+                          dim_head=attention_head_dim,
+                          rescale_output_factor=scale_factor,
+                          eps=eps,
+                          norm_num_groups=norm_num_groups,
+                          spatial_norm_dim=None,
+                          residual_connection=True,
+                          bias=True,
+                          upcast_softmax=True,
+                          _from_deprecated_attn_block=True)
+            )
+
+        resnets.append(
+            CausalResnetBlock3D(
+                in_channels=in_channels,
+                out_channels=in_channels,
+                norm_num_groups=norm_num_groups,
+                dropout=dropout,
+                scale_factor=scale_factor,
+                eps=eps
+            )
+        )
+
+        self.attentions = nn.ModuleList(attentions)
+        self.resnets = nn.ModuleList(resnets)
+
+
+    def forward(self, x):
+
+        x = self.resnets[0](x)
+        b, c, t, h, w = x.shape 
+
+        for attn, resnet in zip(self.attentions, self.resnets[1:]):
+            x = rearrange(x, 
+                          'b c t h w -> (b t) c h w')
+            
+            x = attn(x)
+            x = rearrange(x, 
+                          '(b t) c h w -> b c t h w', t=t)
+        x = resnet(x)
+
+        return x 
+    
+    

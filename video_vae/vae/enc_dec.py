@@ -2,8 +2,8 @@ import torch
 from torch import nn 
 from typing import List, Tuple
 
-from conv import CausalConv3d
-from blocks import CausalDownBlock3d
+from .conv import CausalConv3d, CausalGroupNorm
+from .blocks import CausalDownBlock3d, CausalMiddleBlock3d
 
 class CausalEncoder(nn.Module):
 
@@ -49,3 +49,54 @@ class CausalEncoder(nn.Module):
                                   add_height_width_2x=add_height_width_2x,
                                   add_frame_2x=add_frame_2x)
             )
+
+
+        # <-- Mid block --> 
+        self.mid_block_layer = CausalMiddleBlock3d(in_channels=channels[-1],
+                                                   attention_head_dim=512,
+                                                   norm_num_groups=norm_num_groups,
+                                                   dropout=dropout,
+                                                   scale_factor=scale_factor,
+                                                   eps=eps)
+        
+        self.conv_norm_out = CausalGroupNorm(in_channels=channels[-1],
+                                             num_groups=norm_num_groups,
+                                             eps=eps)
+        
+        self.act_fn = nn.SiLU()
+        conv_output_channels = 2 * out_channels if double_z else out_channels
+
+        self.conv_output = CausalConv3d(in_channels=channels[-1],
+                                        out_channels=conv_output_channels,
+                                        kernel_size=3,
+                                        stride=1)
+        
+        self.gradient_checkpointing = False
+
+
+    def forward(self, 
+                x: torch.FloatTensor) -> torch.FloatTensor:
+        
+        sample = self.conv_in(x)
+
+        if self.training and self.gradient_checkpointing:
+
+            pass 
+
+        else:
+            # down
+            for down_block in self.encoder_block_layers:
+                sample = down_block(sample)
+
+            # middle block 
+            sample = self.mid_block_layer(sample)
+
+
+        # post process 
+        sample = self.conv_norm_out(sample)
+        sample = self.act_fn(sample)
+        sample = self.conv_output(sample)
+
+        return sample
+
+        

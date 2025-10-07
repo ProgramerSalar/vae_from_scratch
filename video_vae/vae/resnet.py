@@ -1,7 +1,7 @@
 import torch 
 from torch import nn 
 
-from conv import CausalConv3d, CausalGroupNorm
+from .conv import CausalConv3d, CausalGroupNorm
 
 
 
