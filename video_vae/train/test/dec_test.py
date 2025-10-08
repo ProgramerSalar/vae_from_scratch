@@ -6,7 +6,7 @@ from train.args import get_args
 from middleware.start_distributed_mode import init_distributed_mode
 from middleware.gpu_processes import initialized_context_parallel
 from vae.enc_dec import CausalDecoder
-# from vae.blocks import CausalUpperBlock
+from vae.blocks import CausalUpperBlock
 
 
 def test_train(args):
@@ -19,7 +19,8 @@ def test_train(args):
 
     x = torch.randn(2, 6, 1, 32, 32).to("cuda:0").half()
     model = CausalDecoder(in_channels=6,
-                          out_channels=3).to("cuda:0").half()
+                          out_channels=3,
+                          norm_num_groups=2).to("cuda:0").half()
     
     
     out = model(x)

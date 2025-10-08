@@ -178,7 +178,7 @@ class CausalDecoder(nn.Module):
         
         # output 
         self.conv_norm_out = CausalGroupNorm(in_channels=channels[0],
-                                             norm_num_groups=norm_num_groups,
+                                             num_groups=norm_num_groups,
                                              eps=eps)
         
         self.conv_act = nn.SiLU()
@@ -191,6 +191,8 @@ class CausalDecoder(nn.Module):
         
     def forward(self, 
                 sample: torch.FloatTensor) -> torch.FloatTensor:
+        
+        sample = self.conv_in(sample)
         
         if self.training and self.gradient_checkpointing:
             pass 
