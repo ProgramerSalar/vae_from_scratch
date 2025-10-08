@@ -67,7 +67,24 @@ class CausalConv3d(nn.Module):
         if self.time_kernel_size == 3 and \
             ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
 
-            print('work in progress...')
+            """ 
+                This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel 
+                if you do not have enough GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU 
+                only forward 8 frames during training.
+            """
+
+            x = context_parallel_pass_from_previous_rank(input_=x,
+                                                         dim=2,
+                                                         kernel_size=2)
+            
+            trans_x = context_parallel_pass_from_previous_rank(input_=x[:, :, :-1],
+                                                               dim=2,
+                                                               kernel_size=2)
+            
+            x = torch.cat(tensors=[trans_x, x[:, :, -1:]],
+                          dim=2)
+            
+
 
         else:
             # [2, 3, 8, 256, 256] -> [2, 3, 10, 256, 256]
@@ -79,6 +96,10 @@ class CausalConv3d(nn.Module):
         x = torch.nn.functional.pad(input=x,
                                     pad=self.time_uncausal_padding, 
                                     mode=self.padding_mode)
+        
+
+        if cp_rank != 0:
+            assert AssertionError, "this condition is work in more than one gpu"
         
         
         # [2, 3, 10, 258, 258] -> [2, 3, 8, 256, 256]

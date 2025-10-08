@@ -47,6 +47,8 @@ class CausalResnetBlock3D(nn.Module):
                                                  stride=1,
                                                  bias=True)
             
+            print(f"i want to know that arch: {self.in_out_not_equal}")
+            
 
 
     def forward(self, x):
@@ -56,7 +58,7 @@ class CausalResnetBlock3D(nn.Module):
 
         x = self.norm1(x)
         x = self.act_fn(x)
-        x = self.conv2(x)
+        x = self.conv1(x)
 
         x = self.norm2(x)
         x = self.act_fn(x)
