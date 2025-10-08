@@ -3,7 +3,7 @@ from torch import nn
 from diffusers.models.attention_processor import Attention
 from einops import rearrange
 
-from .resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x, CausalTemporalUpsample2x, CausalUpsampleHeightWidth
+from .resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x, CausalTemporalUpsample2x, CausalUpsampleHeigthWidth
 
 class CausalDownBlock3d(nn.Module):
 
@@ -156,29 +156,28 @@ class CausalUpperBlock(nn.Module):
                  dropout: float = 0.0,
                  eps: float = 1e-5,
                  scale_factor: float = 1.0):
-        
         super().__init__()
         self.add_height_width_2x = add_height_width_2x
         self.add_frame_2x = add_frame_2x
 
         self.resnets = nn.ModuleList([])
         for i in range(num_layers):
+             input_channels = in_channels if i==0 else out_channels
 
-            input_channels = in_channels if i==0 else out_channels
-
-            self.resnets.append(
-                CausalDownBlock3d(in_channels=input_channels,
-                                  out_channels=out_channels,
-                                  dropout=dropout,
-                                  eps=eps,
-                                  scale_factor=scale_factor,
-                                  norm_num_groups=norm_num_groups)
-            )
+             self.resnets.append(
+                 CausalDownBlock3d(in_channels=input_channels,
+                                out_channels=out_channels,
+                                dropout=dropout,
+                                eps=eps,
+                                scale_factor=scale_factor,
+                                norm_num_groups=norm_num_groups,
+                                )
+             )
 
 
         if add_height_width_2x:
             self.upsamplers_height_width = nn.ModuleList([
-                CausalUpsampleHeightWidth(in_channels=out_channels,
+                CausalUpsampleHeigthWidth(in_channels=out_channels,
                                           out_channels=out_channels)
             ])
 
@@ -188,8 +187,8 @@ class CausalUpperBlock(nn.Module):
                                          out_channels=out_channels)
             ])
 
-
-    def forward(self, 
+    
+    def forward(self,
                 x):
         
         for resnet in self.resnets:
@@ -200,8 +199,8 @@ class CausalUpperBlock(nn.Module):
                 x = upsampler_height_width(x)
 
         if self.add_frame_2x:
-            for upsample_frame in self.upsamplers_frame:
-                x = upsample_frame(x)
+            for upsampler_frame in self.upsamplers_frame:
+                x = upsampler_frame(x)
 
         return x 
     

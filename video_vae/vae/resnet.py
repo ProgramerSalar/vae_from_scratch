@@ -126,27 +126,28 @@ class CausalFrame2x(nn.Module):
         return x 
     
 
-
-class CausalUpsampleHeightWidth(nn.Module):
+class CausalUpsampleHeigthWidth(nn.Module):
 
     def __init__(self,
                  in_channels: int,
                  out_channels: int):
-        
         super().__init__()
 
+        # [512] -> [4*256]
         self.conv = CausalConv3d(in_channels=in_channels,
-                                 out_channels=out_channels * 4,
+                                 out_channels=out_channels*4,
                                  kernel_size=3,
                                  stride=1,
                                  bias=True)
         
 
-    def forward(self, x):
-
+    def forward(self,
+                x):
+        
         x = self.conv(x)
-        x = rearrange(x,
-                      'b (c p1 p2) t h w -> b c t (h p1) (w p2)', p1=2, p2=2)
+        # [2, (256*2*2), 8, 256, 256] -> [2, 256, 8, (2*256), (2*256)]
+        x = rearrange(x, 'b (c p1 p2) t h w -> b c t (h p1) (w p2)', 
+                      p1=2, p2=2)
         
         return x 
     
@@ -155,26 +156,24 @@ class CausalTemporalUpsample2x(nn.Module):
 
     def __init__(self,
                  in_channels: int,
-                 out_channels: int):
-        
+                 out_channels: int,
+                 ):
         super().__init__()
+
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channels=out_channels * 2,
                                  kernel_size=3,
                                  stride=1,
                                  bias=True)
         
-
-    def forward(self, x):
-
+    def forward(self,
+                x):
+        
         b, c, t, h, w = x.shape 
         x = self.conv(x)
-
         x = rearrange(x,
                       'b (c p) t h w -> b c (t p) h w', t=t, p=2)
-        
+        # [2, (256*2), 8, 256, 256] -> [2, 512, (8*2-1), 256, 256]
         x = x[:, :, 1:]
         return x 
-    
 
-        
