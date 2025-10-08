@@ -194,14 +194,40 @@ class CausalDecoder(nn.Module):
         
         sample = self.conv_in(sample)
         
+        upscale_dtype = next(iter(self.up_block_layers.parameters())).dtype
         if self.training and self.gradient_checkpointing:
-            pass 
+
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
+                return custom_forward
+            
+            if is_torch_version(">=", "1.11.0"):
+
+                # Down block 
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(self.mid_block_layer),
+                    sample,
+                    use_reentrant=False
+                )
+
+                sample = sample.to(upscale_dtype)
+
+                # Up block 
+                for up_block in self.up_block_layers:
+                    sample = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(up_block),
+                        sample,
+                        use_reentrant=False
+                    )
+                
 
         else:
-            sample = self.mid_block_layer(sample)
+            assert NotImplementedError("make sure you are not training mode.")
+            # sample = self.mid_block_layer(sample)
 
-            for up_block in self.up_block_layers:
-                sample = up_block(sample)
+            # for up_block in self.up_block_layers:
+            #     sample = up_block(sample)
 
 
         sample = self.conv_norm_out(sample)

@@ -23,6 +23,9 @@ def test_train(args):
                           norm_num_groups=2).to("cuda:0").half()
     
     
+    model.gradient_checkpointing = True
+    model.train(mode=True)
+    
     out = model(x)
     print(out.shape)
     
