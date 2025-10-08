@@ -4,7 +4,7 @@ from typing import List, Tuple
 from diffusers.utils import is_torch_version
 
 from .conv import CausalConv3d, CausalGroupNorm
-from .blocks import CausalDownBlock3d, CausalMiddleBlock3d
+from .blocks import CausalDownBlock3d, CausalMiddleBlock3d, CausalUpperBlock
 
 class CausalEncoder(nn.Module):
 
@@ -47,8 +47,8 @@ class CausalEncoder(nn.Module):
                                   eps=eps,
                                   scale_factor=scale_factor,
                                   norm_num_groups=norm_num_groups,
-                                  add_height_width_2x=add_height_width_2x,
-                                  add_frame_2x=add_frame_2x)
+                                  add_height_width_2x=add_height_width_2x[i],
+                                  add_frame_2x=add_frame_2x[i])
             )
 
 
@@ -124,6 +124,87 @@ class CausalEncoder(nn.Module):
         sample = self.conv_norm_out(sample)
         sample = self.act_fn(sample)
         sample = self.conv_output(sample)
+
+        return sample
+
+        
+class CausalDecoder(nn.Module):
+
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 channels: List = [128, 256, 512, 512],
+                 up_num_layers: int = 2,
+                 decoder_num_layers: int = 4,
+                 dropout: float = 0.0,
+                 eps: float = 1e-5,
+                 scale_factor: float = 1.0,
+                 norm_num_groups: int = 32,
+                 add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
+                 add_frame_2x: Tuple[bool, ...] = (True, True, True, False)
+    ):
+        super().__init__()
+
+        # [2, 6, 1, 32, 32] -> [2, 512, 1, 32, 32]
+        self.conv_in = CausalConv3d(in_channels=in_channels,
+                                    out_channels=channels[-1])
+        
+        self.mid_block_layer = CausalMiddleBlock3d(in_channels=channels[-1],
+                                                   attention_head_dim=512,
+                                                   norm_num_groups=norm_num_groups,
+                                                   dropout=dropout,
+                                                   scale_factor=scale_factor,
+                                                   eps=eps)
+        
+        # upper block 
+        self.up_block_layers = nn.ModuleList([])
+        reversed_channels = list(reversed(channels))
+        output_channels = reversed_channels[0] 
+
+        for i in range(decoder_num_layers):
+            input_channels = output_channels
+            output_channels = reversed_channels[i]
+
+            up_block = CausalUpperBlock(in_channels=input_channels,
+                                        out_channels=output_channels,
+                                        num_layers=up_num_layers,
+                                        norm_num_groups=norm_num_groups,
+                                        add_height_width_2x=add_height_width_2x[i],
+                                        add_frame_2x=add_frame_2x[i])
+            
+
+            self.up_block_layers.append(up_block)
+
+        
+        # output 
+        self.conv_norm_out = CausalGroupNorm(in_channels=channels[0],
+                                             norm_num_groups=norm_num_groups,
+                                             eps=eps)
+        
+        self.conv_act = nn.SiLU()
+        self.conv_out = CausalConv3d(in_channels=channels[0],
+                                     out_channels=out_channels,
+                                     kernel_size=3,
+                                     stride=1)
+        
+        self.gradient_checkpointing = False 
+        
+    def forward(self, 
+                sample: torch.FloatTensor) -> torch.FloatTensor:
+        
+        if self.training and self.gradient_checkpointing:
+            pass 
+
+        else:
+            sample = self.mid_block_layer(sample)
+
+            for up_block in self.up_block_layers:
+                sample = up_block(sample)
+
+
+        sample = self.conv_norm_out(sample)
+        sample = self.conv_act(sample)
+        sample = self.conv_out(sample)
 
         return sample
 

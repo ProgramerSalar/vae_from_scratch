@@ -3,7 +3,7 @@ from torch import nn
 from diffusers.models.attention_processor import Attention
 from einops import rearrange
 
-from .resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x
+from .resnet import CausalResnetBlock3D, CausalHeightWidth2x, CausalFrame2x, CausalTemporalUpsample2x, CausalUpsampleHeightWidth
 
 class CausalDownBlock3d(nn.Module):
 
@@ -142,4 +142,66 @@ class CausalMiddleBlock3d(nn.Module):
 
         return x 
     
+    
+
+class CausalUpperBlock(nn.Module):
+
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 num_layers: int = 3,
+                 norm_num_groups: int = 32,
+                 add_height_width_2x: bool = True,
+                 add_frame_2x: bool = True,
+                 dropout: float = 0.0,
+                 eps: float = 1e-5,
+                 scale_factor: float = 1.0):
+        
+        super().__init__()
+        self.add_height_width_2x = add_height_width_2x
+        self.add_frame_2x = add_frame_2x
+
+        self.resnets = nn.ModuleList([])
+        for i in range(num_layers):
+
+            input_channels = in_channels if i==0 else out_channels
+
+            self.resnets.append(
+                CausalDownBlock3d(in_channels=input_channels,
+                                  out_channels=out_channels,
+                                  dropout=dropout,
+                                  eps=eps,
+                                  scale_factor=scale_factor,
+                                  norm_num_groups=norm_num_groups)
+            )
+
+
+        if add_height_width_2x:
+            self.upsamplers_height_width = nn.ModuleList([
+                CausalUpsampleHeightWidth(in_channels=out_channels,
+                                          out_channels=out_channels)
+            ])
+
+        if add_frame_2x:
+            self.upsamplers_frame = nn.ModuleList([
+                CausalTemporalUpsample2x(in_channels=out_channels,
+                                         out_channels=out_channels)
+            ])
+
+
+    def forward(self, 
+                x):
+        
+        for resnet in self.resnets:
+            x = resnet(x)
+
+        if self.add_height_width_2x:
+            for upsampler_height_width in self.upsamplers_height_width:
+                x = upsampler_height_width(x)
+
+        if self.add_frame_2x:
+            for upsample_frame in self.upsamplers_frame:
+                x = upsample_frame(x)
+
+        return x 
     

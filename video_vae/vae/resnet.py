@@ -1,5 +1,6 @@
 import torch 
 from torch import nn 
+from einops import rearrange
 
 from .conv import CausalConv3d, CausalGroupNorm
 
@@ -103,12 +104,15 @@ class CausalFrame2x(nn.Module):
 
     def __init__(self,
                  in_channels: int,
-                 out_channels: int):
+                 out_channels: int,
+                 ):
         
         super().__init__()
 
         # frame/2, height, width
         stride = (2, 1, 1)
+
+        
 
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channels=out_channels,
@@ -120,8 +124,57 @@ class CausalFrame2x(nn.Module):
 
         x = self.conv(x)
         return x 
+    
 
 
+class CausalUpsampleHeightWidth(nn.Module):
 
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int):
+        
+        super().__init__()
+
+        self.conv = CausalConv3d(in_channels=in_channels,
+                                 out_channels=out_channels * 4,
+                                 kernel_size=3,
+                                 stride=1,
+                                 bias=True)
+        
+
+    def forward(self, x):
+
+        x = self.conv(x)
+        x = rearrange(x,
+                      'b (c p1 p2) t h w -> b c t (h p1) (w p2)', p1=2, p2=2)
+        
+        return x 
+    
+
+class CausalTemporalUpsample2x(nn.Module):
+
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int):
+        
+        super().__init__()
+        self.conv = CausalConv3d(in_channels=in_channels,
+                                 out_channels=out_channels * 2,
+                                 kernel_size=3,
+                                 stride=1,
+                                 bias=True)
+        
+
+    def forward(self, x):
+
+        b, c, t, h, w = x.shape 
+        x = self.conv(x)
+
+        x = rearrange(x,
+                      'b (c p) t h w -> b c (t p) h w', t=t, p=2)
+        
+        x = x[:, :, 1:]
+        return x 
+    
 
         
