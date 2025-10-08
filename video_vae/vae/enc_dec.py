@@ -1,6 +1,7 @@
 import torch 
 from torch import nn 
 from typing import List, Tuple
+from diffusers.utils import is_torch_version
 
 from .conv import CausalConv3d, CausalGroupNorm
 from .blocks import CausalDownBlock3d, CausalMiddleBlock3d
@@ -81,7 +82,34 @@ class CausalEncoder(nn.Module):
 
         if self.training and self.gradient_checkpointing:
 
-            pass 
+            def create_custom_forward(module):
+                def custom_forward(*inputs):
+                    return module(*inputs)
+                
+                return custom_forward
+
+            if is_torch_version(">=", "1.11.0"):
+
+                # down block 
+                for down_block in self.encoder_block_layers:
+                    sample = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(down_block),
+                        sample,
+                        use_reentrant=False
+                    )
+
+                # middle block 
+
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(self.mid_block_layer),
+                    sample,
+                    use_reentrant=False
+                )
+                
+            else:
+                assert NotImplementedError("your torch version is lower than `1.11.0`. Please update torch version.")
+
+            
 
         else:
             # down
