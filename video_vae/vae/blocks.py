@@ -165,7 +165,7 @@ class CausalUpperBlock(nn.Module):
              input_channels = in_channels if i==0 else out_channels
 
              self.resnets.append(
-                 CausalDownBlock3d(in_channels=input_channels,
+                 CausalResnetBlock3D(in_channels=input_channels,
                                 out_channels=out_channels,
                                 dropout=dropout,
                                 eps=eps,
