@@ -10,12 +10,12 @@ from .enc_dec import CausalEncoder, CausalDecoder, DecoderOutput
 from .conv import CausalConv3d
 from .gaussian import DiagonalGaussianDistribution
 
-class CausalVAE(ConfigMixin, ModelMixin):
+class CausalVAE(ModelMixin, ConfigMixin):
 
     # this is the gradient checkpoint to reduce the memory used when you train the model.
     _supports_gradient_checkpointing = True
 
-    config_name = "CausalVAEConfig"
+    # config_name = "CausalVAEConfig"
 
     @register_to_config
     def __init__(
@@ -240,6 +240,11 @@ class CausalVAE(ConfigMixin, ModelMixin):
             return (dec,)
         
         return DecoderOutput(sample=dec)
+
+
+   
+        
+
         
             
 
