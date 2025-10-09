@@ -19,7 +19,8 @@ def test_train(args):
         initialized_context_parallel(context_parallel_size=args.context_size)
 
     x = torch.randn(2, 3, 8, 256, 256).to("cuda:0").half()
-    model = CausalVAE(norm_num_groups=2).to("cuda:0").half()
+    model = CausalVAE(encoder_norm_num_groups=2,
+                      decoder_norm_num_groups=2).to("cuda:0").half()
     out = model.encode(x)
     
     
@@ -28,6 +29,7 @@ def test_train(args):
     
     # out = model(x)
     print(out)
+    # print(model)
     
     
     

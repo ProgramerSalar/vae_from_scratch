@@ -12,6 +12,11 @@ from .gaussian import DiagonalGaussianDistribution
 
 class CausalVAE(ConfigMixin, ModelMixin):
 
+    # this is the gradient checkpoint to reduce the memory used when you train the model.
+    _supports_gradient_checkpointing = True
+
+    config_name = "CausalVAEConfig"
+
     @register_to_config
     def __init__(
             self,
@@ -24,28 +29,26 @@ class CausalVAE(ConfigMixin, ModelMixin):
             encoder_dropout: float = 0.0,
             encoder_eps: float = 1e-6,
             encoder_scale_factor: float = 1.0,
-            encoder_norm_num_groups: int = 32,
+            encoder_norm_num_groups: int = 2,
             encoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
             encoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False),
             encoder_double_z: bool = True,
             # <-- Decoder parameters --> 
             decoder_in_channels: int = 4,
             decoder_out_channels: int = 3,
-            decoder_channels: List = [128, 256, 5121, 512],
+            decoder_channels: List = [128, 256, 512, 512],
             up_num_layer: int = 3,
             decoder_num_layers: int = 4,
             decoder_dropout: float = 0.0,
             decoder_eps: float = 1e-6,
             decoder_scale_factor: float = 1.0,
-            decoder_norm_num_groups: int = 32,
+            decoder_norm_num_groups: int = 2,
             decoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
             decoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False)
     ):
         super().__init__()
 
-        # this is the gradient checkpoint to reduce the memory used when you train the model.
-        _supports_gradient_checkpointing = True
-
+        # [2, 3, 8, 256, 256] -> [2, 2*3, 1, 32, 32]
         self.encoder = CausalEncoder(in_channels=encoder_in_channels,
                                      out_channels=encoder_out_channels,
                                      channels=encoder_channels,
@@ -59,6 +62,7 @@ class CausalVAE(ConfigMixin, ModelMixin):
                                      add_frame_2x=encoder_add_frame_2x,
                                      double_z=encoder_double_z)
         
+        # [2, 2*3, 1, 32, 32] -> [2, 3, 1, 256, 256]
         self.decoder = CausalDecoder(in_channels=decoder_in_channels,
                                      out_channels=decoder_out_channels,
                                      channels=decoder_channels,
@@ -72,17 +76,19 @@ class CausalVAE(ConfigMixin, ModelMixin):
                                      add_frame_2x=decoder_add_frame_2x,
                                     )
         
-        # [2, 8, 1, 256, 256] -> [2, 8, 1, 256, 256]
+        # [2, 8, 1, 32, 32] -> [2, 8, 1, 32, 32]
         self.quant_conv = CausalConv3d(in_channels=2*encoder_out_channels,
                                        out_channels=2*encoder_out_channels,
                                        kernel_size=1,
                                        stride=1)
         
-        # [2, 4, 1, 256, 256] -> [2, 4, 1, 256, 256]
+        # [2, 4, 1, 32, 32] -> [2, 4, 1, 32, 32]
         self.post_quant_conv = CausalConv3d(in_channels=encoder_out_channels,
                                             out_channels=encoder_out_channels,
                                             kernel_size=1,
                                             stride=1)
+        
+        self.use_tiling = False
         
 
 
@@ -114,7 +120,7 @@ class CausalVAE(ConfigMixin, ModelMixin):
     ###  <-------------------------------- Tile function -------------------------------> ###
 
     def enable_tiling(self,
-                      use_tiling: bool = True):
+                      use_tiling: bool = False):
         
         """
             Enable tiled VAE decoding. when this option is enabled, the VAE will split the input tensor into tiles to
@@ -180,12 +186,11 @@ class CausalVAE(ConfigMixin, ModelMixin):
             assert NotImplementedError("make sure you don't provide the long videos in you dataset")
 
 
-        # [2, 3, 32, 32]
+        # [2, 3, 256, 256]
         else:
-            assert NotImplementedError("Your Image size is Lower than 32.")
 
             h = self.encoder(x)
-            moments = self.uant_conv(h)
+            moments = self.quant_conv(h)
 
 
 
