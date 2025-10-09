@@ -18,7 +18,7 @@ class CausalVAE(ConfigMixin, ModelMixin):
             # <-- Encoder parameters --> 
             encoder_in_channels: int = 3,
             encoder_out_channels: int = 4,
-            encoder_channels: List[int, int, int, int] = [128, 256, 512, 512],
+            encoder_channels: List = [128, 256, 512, 512],
             down_num_layer: int = 2,
             encoder_num_layers: int = 4,
             encoder_dropout: float = 0.0,
@@ -31,7 +31,7 @@ class CausalVAE(ConfigMixin, ModelMixin):
             # <-- Decoder parameters --> 
             decoder_in_channels: int = 4,
             decoder_out_channels: int = 3,
-            decoder_channels: List[int, int, int, int] = [128, 256, 5121, 512],
+            decoder_channels: List = [128, 256, 5121, 512],
             up_num_layer: int = 3,
             decoder_num_layers: int = 4,
             decoder_dropout: float = 0.0,

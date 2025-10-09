@@ -3,7 +3,7 @@ from torch import nn
 from typing import Tuple
 import numpy as np 
 
-from vae_from_scratch.video_vae.vae_controllers.randn_tensor import randn_tensor
+from vae_controllers.randn_tensor import randn_tensor
 
 class DiagonalGaussianDistribution(object):
 
