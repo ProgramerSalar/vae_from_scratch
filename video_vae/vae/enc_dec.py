@@ -1,10 +1,16 @@
 import torch 
 from torch import nn 
 from typing import List, Tuple
-from diffusers.utils import is_torch_version
+from diffusers.utils import is_torch_version, BaseOutput
 
 from .conv import CausalConv3d, CausalGroupNorm
 from .blocks import CausalDownBlock3d, CausalMiddleBlock3d, CausalUpperBlock
+
+
+class DecoderOutput(BaseOutput):
+
+    sample: torch.FloatTensor
+    
 
 class CausalEncoder(nn.Module):
 
