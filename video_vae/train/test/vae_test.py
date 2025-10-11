@@ -7,7 +7,7 @@ from middleware.start_distributed_mode import init_distributed_mode
 from middleware.gpu_processes import initialized_context_parallel
 # from vae.enc_dec import CausalDecoder
 # from vae.blocks import CausalUpperBlock
-from vae.causal_vae import CausalVAE
+from vae_from_scratch.video_vae.vae.causal_vae.freeze_encoder_vae import CausalVAE
 
 
 def test_train(args):
@@ -21,13 +21,13 @@ def test_train(args):
     x = torch.randn(2, 3, 8, 256, 256).to("cuda:0").half()
     model = CausalVAE(encoder_norm_num_groups=2,
                       decoder_norm_num_groups=2).to("cuda:0").half()
-    out = model.encode(x)
+    # out = model.encode(x)
     
     
     model.gradient_checkpointing = True
     model.train(mode=True)
     
-    # out = model(x)
+    out = model(x)
     print(out)
     # print(model)
     

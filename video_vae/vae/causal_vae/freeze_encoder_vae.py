@@ -6,9 +6,11 @@ from diffusers.models.modeling_outputs import AutoencoderKLOutput
 from typing import List, Tuple, Union
 from timm.layers.weight_init import trunc_normal_
 
-from .enc_dec import CausalEncoder, CausalDecoder, DecoderOutput
-from .conv import CausalConv3d
-from .gaussian import DiagonalGaussianDistribution
+from ..enc_dec import CausalEncoder, CausalDecoder, DecoderOutput
+from ..conv import CausalConv3d
+from ..gaussian import DiagonalGaussianDistribution
+from middleware.gpu_processes import is_context_parallel_initialized, get_context_parallel_rank
+
 
 class CausalVAE(ModelMixin, ConfigMixin):
 
@@ -117,124 +119,55 @@ class CausalVAE(ModelMixin, ConfigMixin):
         else:
             raise NotImplementedError("You are not in the Training mode. Please you should activate the training mode!")
         
-    ###  <-------------------------------- Tile function -------------------------------> ###
+   
 
-    def enable_tiling(self,
-                      use_tiling: bool = False):
+
+    def forward(self,
+                sample: torch.FloatTensor,
+                sample_posterior: bool = True,
+                generator: torch.Generator = None,
+                freeze_encoder: bool = True,
+                is_init_image=True,
+                temporal_chunk=False
+                ) -> Union[DecoderOutput, torch.FloatTensor]:
         
-        """
-            Enable tiled VAE decoding. when this option is enabled, the VAE will split the input tensor into tiles to
-            compute decoding and encoding in several steps. 
-            This is useful for saving a large amount of memory and to allow processing larger images.
 
-            for more info: https://arxiv.org/html/2412.15185v4
+        x = sample
 
-            PURPOSE: 
-                Tiled VAE Decoding Explained
-                Imagine you have to paint a very large picture.
+        if is_context_parallel_initialized():
+            assert self.training, "You are training mode."
 
-                Normal Method: You try to paint the entire canvas all at once. 
-                This requires a huge workspace and all your paint tubes to be open, 
-                which can be overwhelming and messy.
+            if freeze_encoder:
+                with torch.no_grad():
+                    # [2, 3, 8, 256, 256] -> [2, 6, 1, 32, 32]
+                    h = self.encoder(x)
+                    # [2, 6, 1, 32, 32] -> [2, 6, 1, 32, 32]
+                    moments = self.quant_conv(h)
+                    posterior = DiagonalGaussianDistribution(moments)
+                    global_posterior = posterior
 
-                Tiled Method: You divide the canvas into a grid of smaller squares (tiles). 
-                You paint one square at a time, finish it, and then move to the next. 
-                This requires a much smaller workspace and only the paints you need for that specific square.
-        """
-        
-        self.use_tiling = use_tiling
+            if sample_posterior:
+                z = posterior.sample(generator=generator)
 
-
-    def disable_tiling(self):
-
-        """
-            Disable tiled VAE decoding. 
-            If `enable_tiling` was previously enabled, this method will go back to computing 
-            decoding in one step.
-        """
-
-        self.enable_tiling(use_tiling=False)
-
-    ###  <-------------------------------- Tile function -------------------------------> ###
+            if get_context_parallel_rank() == 0:
+                dec = self.decode(z)
 
 
-    def encode(
-            self,
-            x: torch.FloatTensor,
-            return_dict: bool = True,
-            window_size=16,
-            tile_sample_min_size=256,
-            temporal_chunk=False
-    ) -> Union[Tuple[DiagonalGaussianDistribution], AutoencoderKLOutput]:
-        
-        self.tile_sample_min_size = tile_sample_min_size
-        self.tile_sample_min_size = int(tile_sample_min_size / 8)
-        
-        # [2, 3, 256, 256]
-        if self.use_tiling and \
-            (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size): # feature > 32
+        return global_posterior, dec
 
-            assert NotImplementedError("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Your Image size is greater than 32.>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
-        if temporal_chunk:
-            """
-                a type of generative model that compresses video data by dividing it into sequential "chunks" and processing them 
-                with a Variational Autoencoder (VAE). This technique is used primarily in video generation and c
-                ompression to efficiently handle long videos and maintain temporal consistency. 
-            """
             
-            assert NotImplementedError("make sure you don't provide the long videos in you dataset")
-
-
-        # [2, 3, 256, 256]
-        else:
-
-            h = self.encoder(x)
-            moments = self.quant_conv(h)
-
-
-
-
-        posterior = DiagonalGaussianDistribution(moments)
-
-        if not return_dict:
-            return (posterior,)
-        
-        return AutoencoderKLOutput(latent_dist=posterior)
-    
 
 
     def decode(self,
                z: torch.FloatTensor,
-               window_size=2,
-               return_dict: bool = True,
-               tile_sample_min_size=256,
-               temporal_chunk=False) -> Union[torch.FloatTensor, DecoderOutput]:
+               return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
         
+        # [2, 4, 1, 32, 32] -> [2, 4, 1, 32, 32]
+        z = self.post_quant_conv(z)
 
-        self.tile_sample_min_size = tile_sample_min_size
-        self.tile_sample_min_size = int(tile_sample_min_size / 8)
-
-        if self.use_tiling and \
-            (z.shape[-1] > self.tile_sample_min_size or z.shape[-2] > self.tile_sample_min_size): # feature > 32
-
-            assert NotImplementedError("Your Image size is greater than 32.")
-
-
-        if temporal_chunk:
-            
-            """
-                a type of generative model that compresses video data by dividing it into sequential "chunks" and processing them 
-                with a Variational Autoencoder (VAE). This technique is used primarily in video generation and c
-                ompression to efficiently handle long videos and maintain temporal consistency. 
-            """
-            
-            assert NotImplementedError("make sure you don't provide the long videos in you dataset")
-
-        else:
-            print("<<<<<<<<<<<<<<Your Image size is Lower than 32.>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            z = self.post_quant_conv(z)
-            dec = self.decoder(z)
+        # [2, 4, 1, 32, 32] -> [2, 3, 1, 256, 256]
+        dec = self.decoder(z)
 
         if not return_dict:
             return (dec,)
