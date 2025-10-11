@@ -30,7 +30,6 @@ class CausalVAE(ModelMixin, ConfigMixin):
             encoder_num_layers: int = 4,
             encoder_dropout: float = 0.0,
             encoder_eps: float = 1e-6,
-            encoder_scale_factor: float = 1.0,
             encoder_norm_num_groups: int = 32,
             encoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
             encoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False),
@@ -43,10 +42,10 @@ class CausalVAE(ModelMixin, ConfigMixin):
             decoder_num_layers: int = 4,
             decoder_dropout: float = 0.0,
             decoder_eps: float = 1e-6,
-            decoder_scale_factor: float = 1.0,
             decoder_norm_num_groups: int = 32,
             decoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
-            decoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False)
+            decoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False),
+            scaling_factor: float = 1.0
     ):
         super().__init__()
 
@@ -58,7 +57,7 @@ class CausalVAE(ModelMixin, ConfigMixin):
                                      encoder_num_layers=encoder_num_layers,
                                      dropout=encoder_dropout,
                                      eps=encoder_eps,
-                                     scale_factor=encoder_scale_factor,
+                                     scale_factor=scaling_factor,
                                      norm_num_groups=encoder_norm_num_groups,
                                      add_height_width_2x=encoder_add_height_width_2x,
                                      add_frame_2x=encoder_add_frame_2x,
@@ -72,7 +71,7 @@ class CausalVAE(ModelMixin, ConfigMixin):
                                      decoder_num_layers=decoder_num_layers,
                                      dropout=decoder_dropout,
                                      eps=decoder_eps,
-                                     scale_factor=decoder_scale_factor,
+                                     scale_factor=scaling_factor,
                                      norm_num_groups=decoder_norm_num_groups,
                                      add_height_width_2x=decoder_add_height_width_2x,
                                      add_frame_2x=decoder_add_frame_2x,
