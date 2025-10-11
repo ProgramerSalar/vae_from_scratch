@@ -2,8 +2,8 @@ import torch
 from torch import nn 
 from einops import rearrange
 
-from discriminator import NLayerDiscriminator, NLayerDiscriminator3D, weights_init
-from lpips import LPIPS
+from .discriminator import NLayerDiscriminator, NLayerDiscriminator3D, weights_init
+from .lpips import LPIPS
 from vae.gaussian import DiagonalGaussianDistribution
 
 

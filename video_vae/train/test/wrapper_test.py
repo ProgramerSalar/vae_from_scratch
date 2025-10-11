@@ -16,8 +16,13 @@ def test_train(args):
     if args.use_context_parallel:
         initialized_context_parallel(context_parallel_size=args.context_size)
 
-    model = CausalVideoVAELossWrapper()
-    print(model)
+    model = CausalVideoVAELossWrapper().to("cuda:0").half()
+    # print(model)
+    x = torch.randn(2, 3, 8, 256, 256).to("cuda:0").half()
+
+    out = model(x)
+    print(out)
+    
     
     
     

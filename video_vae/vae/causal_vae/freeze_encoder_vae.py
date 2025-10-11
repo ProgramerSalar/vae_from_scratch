@@ -131,19 +131,20 @@ class CausalVAE(ModelMixin, ConfigMixin):
                 z = posterior.sample(generator=generator)
 
             if get_context_parallel_rank() == 0:
-                dec = self.decode(z).shape
+                dec = self.decode(z).sample
 
             else:
-                dec = self.decode(z).shape
+                dec = self.decode(z).sample
 
 
-            return global_posterior, z
+            return global_posterior, dec
         
 
 
 
             
-
+    def get_last_layer(self):
+        return self.decoder.conv_out.conv.weight
 
     def decode(self,
                z: torch.FloatTensor,

@@ -1,11 +1,11 @@
-from vae.wrapper import CausalVideoVaeWrapper 
+from vae.wrapper import CausalVideoVAELossWrapper
 
 
 
 def build_model(args):
 
     model_dtype = args.model_dtype
-    model = CausalVideoVaeWrapper()
+    model = CausalVideoVAELossWrapper()
 
     return model
 
