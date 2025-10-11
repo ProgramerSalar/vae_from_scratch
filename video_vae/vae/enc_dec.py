@@ -78,7 +78,7 @@ class CausalEncoder(nn.Module):
                                         kernel_size=3,
                                         stride=1)
         
-        self.gradient_checkpointing = False
+        self.gradient_checkpointing = True
 
 
     def forward(self, 
@@ -193,7 +193,7 @@ class CausalDecoder(nn.Module):
                                      kernel_size=3,
                                      stride=1)
         
-        self.gradient_checkpointing = False 
+        self.gradient_checkpointing = True
         
     def forward(self, 
                 sample: torch.FloatTensor) -> torch.FloatTensor:

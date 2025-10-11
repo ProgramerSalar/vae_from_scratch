@@ -31,7 +31,7 @@ class CausalVAE(ModelMixin, ConfigMixin):
             encoder_dropout: float = 0.0,
             encoder_eps: float = 1e-6,
             encoder_scale_factor: float = 1.0,
-            encoder_norm_num_groups: int = 2,
+            encoder_norm_num_groups: int = 32,
             encoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
             encoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False),
             encoder_double_z: bool = True,
@@ -44,7 +44,7 @@ class CausalVAE(ModelMixin, ConfigMixin):
             decoder_dropout: float = 0.0,
             decoder_eps: float = 1e-6,
             decoder_scale_factor: float = 1.0,
-            decoder_norm_num_groups: int = 2,
+            decoder_norm_num_groups: int = 32,
             decoder_add_height_width_2x: Tuple[bool, ...] = (True, True, True, False),
             decoder_add_frame_2x: Tuple[bool, ...] = (True, True, True, False)
     ):
@@ -105,30 +105,12 @@ class CausalVAE(ModelMixin, ConfigMixin):
             nn.init.constant_(m.weight, 1.0)
 
 
-    def _set_gradient_checkpointing(self, 
-                                    enable = False, 
-                                    gradient_checkpointing_func=None):
-        
-        if enable:
-            def _apply_gradient_checkpointing(module):
-                if isinstance(module, (CausalEncoder, CausalDecoder)):
-                    module.gradient_checkpointing = True
-
-            self.apply(_apply_gradient_checkpointing)
-
-        else:
-            raise NotImplementedError("You are not in the Training mode. Please you should activate the training mode!")
-        
    
-
-
     def forward(self,
                 sample: torch.FloatTensor,
                 sample_posterior: bool = True,
                 generator: torch.Generator = None,
-                freeze_encoder: bool = True,
-                is_init_image=True,
-                temporal_chunk=False
+                freeze_encoder: bool = True
                 ) -> Union[DecoderOutput, torch.FloatTensor]:
         
 
@@ -150,10 +132,15 @@ class CausalVAE(ModelMixin, ConfigMixin):
                 z = posterior.sample(generator=generator)
 
             if get_context_parallel_rank() == 0:
-                dec = self.decode(z)
+                dec = self.decode(z).shape
+
+            else:
+                dec = self.decode(z).shape
 
 
-        return global_posterior, dec
+            return global_posterior, z
+        
+
 
 
             
