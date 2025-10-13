@@ -80,7 +80,7 @@ class MetricLogger(object):
     start_time = time.time()
     end_time = time.time()
 
-    iteration_time = SmoothedValue(fmt='avg:.4f')
+    iteration_time = SmoothedValue(fmt='{avg:.4f}')
     data_time = SmoothedValue(fmt='{avg:.4f}')
 
     space_fmt = ':' + str(len(str(len(iterable)))) + 'd'       # :4d
@@ -89,16 +89,22 @@ class MetricLogger(object):
       header,
       '[{0' + space_fmt + '}]/{1}',
       'eta: {eta}',
+      '{meters}',
+      'time: {time}',
+      'data: {data}'
     ]
-    log_msg = str(log_msg)
+    
 
     if torch.cuda.is_available():
       log_msg.append('GPU memory: {memory:.0f}')
 
+    log_msg = str(log_msg)
+    MB = 1024.0 * 1024.0
     for obj in iterable:
       data_time.update(time.time() - end_time)
       yield obj 
       iteration_time.update(time.time() - end_time)
+     
 
           # in the range of 20 iteration has been 0 
       if i % print_freq == 0 or \
@@ -111,19 +117,23 @@ class MetricLogger(object):
           print(log_msg.format(
             i,
             len(iterable),
-            eta=eta_string
+            eta=eta_string,
+            meters=str(self),
+            time=str(iteration_time),
+            data=str(data_time),
+            memory=torch.cuda.max_memory_allocated() / MB
           ))
         
 
       i += 1
+      # end_time = time.time()
+
+    total_time = time.time() - start_time
+    
+    total_time_str = str(timedelta(seconds=int(total_time)))
+    print(f'{header} Total time: {total_time_str} ({total_time / len(iterable):.4f}) s / it)')
 
     
-
-
-
-            
-
-
 
   def add_meter(self, name, meter):
     # name = key, meter = value 

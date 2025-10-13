@@ -8,6 +8,9 @@ def train_epoch(model: torch.nn.Module,
                 optimizer_disc: torch.optim.Optimizer,
                 epoch: int,
                 print_freq: int = 20 ):
+
+  start_steps = 0
+  iters_per_epoch = 2000
   
   # activate the training 
   model.train()
@@ -26,8 +29,20 @@ def train_epoch(model: torch.nn.Module,
 
   header = f"Epoch: [{epoch}]"
 
-  for step in metric_logger.log_every(iterable=range(2000), header=header, print_freq=print_freq):
-    print(step)
+  for step in metric_logger.log_every(iterable=range(iters_per_epoch), 
+                                      header=header, 
+                                      print_freq=print_freq):
+
+    if step >= iters_per_epoch:
+      break 
+
+
+    # global iteration training 
+    global_iteration = start_steps + step 
+
+    
+
+    
 
 
 
