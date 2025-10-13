@@ -38,6 +38,7 @@ def main(args):
     print(f"Total number of fixed parameters: {number_fix_parameters / 1e6} Million")         # 124M
 
     optimizer = Optimizer_handler(model=model)
+    optimizer_disc = Optimizer_handler(model=model)
     # print(f"optimizer: >>>> {optimizer}")
 
     loss_scaler = LossScaler()
@@ -50,6 +51,14 @@ def main(args):
 
     torch.distributed.barrier()
 
+    for epoch in range(0, 10):
+      print(f"--------------------------> epoch: {epoch}")
+      train_epoch(model=model,
+                optimizer=optimizer,
+                optimizer_disc=optimizer_disc,
+                epoch=epoch)
+
+    
 
     
 

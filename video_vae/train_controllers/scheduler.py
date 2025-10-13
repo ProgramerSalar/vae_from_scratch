@@ -57,7 +57,7 @@ def cosine_scheduler(base_value: float = 5e-5,
         for i in iters
     ])
 
-    scheduler = np.concatenate(arrays=(warmup_schedule, scheduler))
+    scheduler = np.concatenate((warmup_schedule, scheduler))
 
     # 190000 == 200000
     assert len(scheduler) == epochs * num_iter_per_epoch, ValueError
