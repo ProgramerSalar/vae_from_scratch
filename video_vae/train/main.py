@@ -37,15 +37,19 @@ def main(args):
     number_fix_parameters = sum(p.numel() for p in model.parameters() if not p.requires_grad)
     print(f"Total number of fixed parameters: {number_fix_parameters / 1e6} Million")         # 124M
 
-    optimizer = Optimizer_handler(model=model)
-    optimizer_disc = Optimizer_handler(model=model)
+    optimizer = Optimizer_handler(model=model.vae)
+    optimizer_disc = Optimizer_handler(model=model.loss.discriminator)
     # print(f"optimizer: >>>> {optimizer}")
+
+    # print(model.loss.discriminator)
 
     loss_scaler = LossScaler()
     loss_scaler_disc = LossScaler()
 
     lr_schedule_values = cosine_scheduler()
     lr_schedule_values_disc = cosine_scheduler()
+
+    # print(f"lr_schedule_values: >>>>>>>>>>>>> {len(lr_schedule_values)}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else None)
 
@@ -56,7 +60,9 @@ def main(args):
       train_epoch(model=model,
                 optimizer=optimizer,
                 optimizer_disc=optimizer_disc,
-                epoch=epoch)
+                epoch=epoch,
+                lr_scheduler_values=lr_schedule_values,
+                lr_scheduler_values_disc= lr_schedule_values_disc)
 
     
 
