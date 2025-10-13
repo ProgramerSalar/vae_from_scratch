@@ -1,5 +1,6 @@
 import torch 
-import sys 
+import sys
+from torch.distributed import is_available 
 sys.path.append('/content/vae_from_scratch/video_vae')
 
 from train.args import get_args
@@ -8,6 +9,10 @@ from vae.wrapper import CausalVideoVAELossWrapper
 from middleware.start_distributed_mode import init_distributed_mode
 from middleware.gpu_processes import initialized_context_parallel
 from train_controllers.optimizer_handlers import Optimizer_handler
+from train_controllers.loss_scaler import LossScaler
+from train_controllers.scheduler import cosine_scheduler
+from train_controllers.train_epoch import train_epoch
+
 
 def main(args):
 
@@ -33,7 +38,25 @@ def main(args):
     print(f"Total number of fixed parameters: {number_fix_parameters / 1e6} Million")         # 124M
 
     optimizer = Optimizer_handler(model=model)
-    print(f"optimizer: >>>> {optimizer}")
+    # print(f"optimizer: >>>> {optimizer}")
+
+    loss_scaler = LossScaler()
+    loss_scaler_disc = LossScaler()
+
+    lr_schedule_values = cosine_scheduler()
+    lr_schedule_values_disc = cosine_scheduler()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else None)
+
+    torch.distributed.barrier()
+
+
+    
+
+
+
+
+
 
 
 
