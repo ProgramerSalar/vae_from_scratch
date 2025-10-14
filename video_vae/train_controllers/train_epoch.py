@@ -53,6 +53,16 @@ def train_epoch(model: torch.nn.Module,
           param_group["lr"] = lr_scheduler_values_disc[global_iteration] * param_group.get("lr_scale", 1.0)
 
     ######################################################################################################################
+    x = torch.randn(2, 3, 8, 256, 256).to("cuda:0").half()
+
+    with torch.amp.autocast(device_type="cuda",
+                            dtype=torch.float16,
+                            enabled=True):
+      
+      rec_loss, gan_loss, log_loss = model(x, step=2000)
+      print(rec_loss, gan_loss, log_loss)
+
+
     # the update of rec_loss 
     if rec_loss is not None:
       pass 
