@@ -1,6 +1,6 @@
 
 from logging import NOTSET
-import torch 
+import torch, math, sys
 
 from .metriclogger import MetricLogger, SmoothedValue
 
@@ -10,6 +10,8 @@ def train_epoch(model: torch.nn.Module,
                 epoch: int,
                 lr_scheduler_values = None,
                 lr_scheduler_values_disc = None,
+                loss_scaler=None,
+                clip_grad: float = 0,
                 print_freq: int = 20 ):
 
   start_steps = 0
@@ -60,13 +62,31 @@ def train_epoch(model: torch.nn.Module,
                             enabled=True):
       
       rec_loss, gan_loss, log_loss = model(x, step=2000)
-      print(rec_loss, gan_loss, log_loss)
+      # print(rec_loss, gan_loss, log_loss)
 
 
-    # the update of rec_loss 
-    if rec_loss is not None:
-      pass 
+    assert rec_loss is not None, "make sure `rec_loss` is not None."
+    
+    print(f"what is the output to get rec_loss >>>>>>>>>", rec_loss)
+    if not math.isfinite(rec_loss.item()):
+        print(f"finite value has in the loss: >>>>> {rec_loss.item()}")
+        sys.exit(1)
 
+    optimizer.zero_grad()
+    # grad_norm = loss_scaler(loss=rec_loss,
+    #                         optimizer=optimizer,
+    #                         clip_grad=clip_grad,
+    #                         parameters=model.vae.parameters())
+
+
+    
+
+    
+
+      
+
+
+     
       
 
 

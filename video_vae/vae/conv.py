@@ -128,8 +128,8 @@ class CausalConv3d(nn.Module):
         
         
         # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
-        if is_context_parallel_initialized():
-            return self.context_parallel_forward(x)
+        # if is_context_parallel_initialized():
+        #     return self.context_parallel_forward(x)
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
