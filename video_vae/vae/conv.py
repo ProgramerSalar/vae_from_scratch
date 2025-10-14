@@ -59,10 +59,10 @@ class CausalConv3d(nn.Module):
                               **kwargs)
         self.cache_first_feat = deque()
         
-    def context_parallel_forward(self, x):
+    # def context_parallel_forward(self, x):
         
         # context parallel ranks 
-        cp_rank = get_context_parallel_rank()
+        # cp_rank = get_context_parallel_rank()
 
         # if self.time_kernel_size == 3 and \
         #     ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
@@ -129,7 +129,8 @@ class CausalConv3d(nn.Module):
         
         # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
         if is_context_parallel_initialized():
-            return self.context_parallel_forward(x)
+            # return self.context_parallel_forward(x)
+            pass 
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
