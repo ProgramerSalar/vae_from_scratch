@@ -25,7 +25,8 @@ class CausalVideoVAELossWrapper(nn.Module):
         self.disc_start=disc_start
     
 
-        self.vae = CausalVAE()
+        self.vae = CausalVAE(encoder_norm_num_groups=1,
+                             decoder_norm_num_groups=1)
         self.vae_scale_factor = self.vae.config.scaling_factor 
 
         if freeze_encoder:
