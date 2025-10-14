@@ -64,47 +64,47 @@ class CausalConv3d(nn.Module):
         # context parallel ranks 
         cp_rank = get_context_parallel_rank()
 
-        if self.time_kernel_size == 3 and \
-            ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
+        # if self.time_kernel_size == 3 and \
+        #     ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
 
-            """ 
-                This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel 
-                if you do not have enough GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU 
-                only forward 8 frames during training.
-            """
+        #     """ 
+        #         This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel 
+        #         if you do not have enough GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU 
+        #         only forward 8 frames during training.
+        #     """
 
-            x = context_parallel_pass_from_previous_rank(input_=x,
-                                                         dim=2,
-                                                         kernel_size=2)
+        #     x = context_parallel_pass_from_previous_rank(input_=x,
+        #                                                  dim=2,
+        #                                                  kernel_size=2)
             
-            trans_x = context_parallel_pass_from_previous_rank(input_=x[:, :, :-1],
-                                                               dim=2,
-                                                               kernel_size=2)
+        #     trans_x = context_parallel_pass_from_previous_rank(input_=x[:, :, :-1],
+        #                                                        dim=2,
+        #                                                        kernel_size=2)
             
-            x = torch.cat(tensors=[trans_x, x[:, :, -1:]],
-                          dim=2)
+        #     x = torch.cat(tensors=[trans_x, x[:, :, -1:]],
+        #                   dim=2)
             
 
 
-        else:
-            # [2, 3, 8, 256, 256] -> [2, 3, 10, 256, 256]
-            x = context_parallel_pass_from_previous_rank(input_=x,
-                                                         dim=2,
-                                                         kernel_size=self.time_kernel_size)
+        # else:
+        #     # [2, 3, 8, 256, 256] -> [2, 3, 10, 256, 256]
+        #     x = context_parallel_pass_from_previous_rank(input_=x,
+        #                                                  dim=2,
+        #                                                  kernel_size=self.time_kernel_size)
             
-        # [2, 3, 10, 256, 256] -> [2, 3, 10, 258, 258]
-        x = torch.nn.functional.pad(input=x,
-                                    pad=self.time_uncausal_padding, 
-                                    mode=self.padding_mode)
+        # # [2, 3, 10, 256, 256] -> [2, 3, 10, 258, 258]
+        # x = torch.nn.functional.pad(input=x,
+        #                             pad=self.time_uncausal_padding, 
+        #                             mode=self.padding_mode)
         
 
-        if cp_rank != 0:
-            assert AssertionError, "this condition is work in more than one gpu"
+        # if cp_rank != 0:
+        #     assert AssertionError, "this condition is work in more than one gpu"
         
         
-        # [2, 3, 10, 258, 258] -> [2, 3, 8, 256, 256]
-        x = self.conv(x)
-        return x 
+        # # [2, 3, 10, 258, 258] -> [2, 3, 8, 256, 256]
+        # x = self.conv(x)
+        # return x 
     
 
     def _init_weights(self, m):
@@ -128,8 +128,8 @@ class CausalConv3d(nn.Module):
         
         
         # [2, 3, 8, 256, 256] -> [2, 3, 8, 256, 256]
-        # if is_context_parallel_initialized():
-        #     return self.context_parallel_forward(x)
+        if is_context_parallel_initialized():
+            return self.context_parallel_forward(x)
         
         padding_mode = self.padding_mode if self.time_pad < x.shape[2] else 'constant'
 
