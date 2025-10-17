@@ -38,7 +38,7 @@ class Encoder(nn.Module):
         for layer in self.down_encoder_blocks:
             x = layer(x)
             
-
+        print(f"Encoder shape of data: {x.shape}")
         return x 
     
 

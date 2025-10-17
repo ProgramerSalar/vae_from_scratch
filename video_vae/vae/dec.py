@@ -39,8 +39,8 @@ class Decoder(nn.Module):
 
         for layer in self.upper_decoder_blocks:
             x = layer(x)
-            print(f"shape of data: {x.shape}")
             
+        print(f"Decoder shape of data: {x.shape}")    
         return x 
     
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     model = Decoder(device=device)
     print(model)
 
-    x = torch.randn(2, 512, 1, 16, 16)
+    x = torch.randn(2, 512, 1, 32, 32)
     out = model(x)
     print(out.shape)
 

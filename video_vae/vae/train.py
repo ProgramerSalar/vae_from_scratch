@@ -6,21 +6,25 @@ from causal_vae import CausalVAE
 
 if __name__ == "__main__":
 
-    x = torch.randn(2, 3, 8, 256, 256)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    x = torch.randn(2, 3, 8, 256, 256).to(device)
+    target = torch.randn(2, 3, 8, 256, 256).to(device)
 
-    model = CausalVAE(device=device)
-    output = model(x)
+    
+
+    model = CausalVAE(device=device).to(device)
     optimizer = torch.optim.AdamW(params=model.parameters())
     scaler = torch.amp.GradScaler(device=device)
+    loss_fn = torch.nn.MSELoss()
     
     # print(optimizer)
 
     for epoch in range(10):
+        optimizer.zero_grad()
 
-        with torch.autocast(device_type=device, dtype=torch.float16):
-            loss_fn = torch.nn.MSELoss()
-            loss = loss_fn(output, x)
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
+            output = model(x)
+            loss = loss_fn(output, target)
             print(f"Loss: {loss}")
 
         scaler.scale(loss).backward()
