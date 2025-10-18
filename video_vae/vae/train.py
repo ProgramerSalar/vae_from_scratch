@@ -3,12 +3,30 @@ from torch import nn
 from causal_vae import CausalVAE
 import sys 
 from einops import rearrange
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
 sys.path.append("/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/video_vae")
 from loss.lpips import Lpips
+from dataset.video_dataset import VideoDataset
+
 
 
 if __name__ == "__main__":
+
+    ## Dataset 
+    data_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.CenterCrop(256),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    # Instantiate the Dataset
+    video_dataset = VideoDataset(video_dir='/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/Data', num_frames=16, transform=data_transform)
+    print(f"Dataset created with {len(video_dataset)} videos.")
+    data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
+
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     x = torch.randn(2, 3, 8, 256, 256).to(device)
@@ -28,18 +46,22 @@ if __name__ == "__main__":
 
     for epoch in range(10):
         optimizer.zero_grad()
+        
+        for batch in data_loader:
+            batch = rearrange(batch, 'b t c h w -> b c t h w')
+            target = rearrange(batch, 'b c t h w -> (b t) c h w')
 
-        with torch.autocast(device_type="cuda", dtype=torch.float16):
-            output = model(x)
-            output = rearrange(output, 'b c t h w -> (b t) c h w')
-            loss = loss_fn(output, target)
-            loss = loss.mean()
-            print(f"Loss: {loss.item()}")
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                output = model(batch)
+                output = rearrange(batch, 'b t c h w -> (b t) c h w')
+                loss = loss_fn(output, target)
+                loss = loss.mean()
+                print(f"Loss: {loss.item()}")
 
-        scaler.scale(loss).backward()
+            scaler.scale(loss).backward()
 
-        scaler.unscale_(optimizer)
-        nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.unscale_(optimizer)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-        scaler.step(optimizer)
-        scaler.update()
+            scaler.step(optimizer)
+            scaler.update()
