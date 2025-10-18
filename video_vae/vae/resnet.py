@@ -28,6 +28,14 @@ class CausalResnet3d(nn.Module):
                                      num_groups=num_groups,
                                      device=device)
         
+        self.conv2 = CausalConv3d(in_channels=out_channels,
+                                  out_channel=out_channels,
+                                  device=device)
+        
+        
+        self.dropout = nn.Dropout()
+        self.act_fn = nn.SiLU()
+
         # 128 -> 256
         output_channels = out_channels
         self.increment_conv = None
@@ -41,8 +49,15 @@ class CausalResnet3d(nn.Module):
 
         sample = x
         x = self.norm1(x)
+        x = self.act_fn(x)
         x = self.conv1(x)
+
         x = self.norm2(x)
+        x = self.act_fn(x)
+        x = self.dropout(x)
+        x = self.conv2(x)
+
+
 
         # [2, 128, 8, 256, 256]
         if self.increment_conv is not None:
