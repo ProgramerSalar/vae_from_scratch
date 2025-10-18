@@ -1,7 +1,9 @@
 import torch 
 from torch import nn 
-
 from causal_vae import CausalVAE
+import sys 
+sys.path.append("/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/video_vae")
+from loss.lpips import Lpips
 
 
 if __name__ == "__main__":
@@ -10,12 +12,12 @@ if __name__ == "__main__":
     x = torch.randn(2, 3, 8, 256, 256).to(device)
     target = torch.randn(2, 3, 8, 256, 256).to(device)
 
-    
-
     model = CausalVAE(device=device).to(device)
     optimizer = torch.optim.AdamW(params=model.parameters())
     scaler = torch.amp.GradScaler(device=device)
-    loss_fn = torch.nn.MSELoss()
+    # loss_fn = torch.nn.MSELoss()
+    loss_fn = Lpips()
+    print(loss_fn)
     
     # print(optimizer)
 
