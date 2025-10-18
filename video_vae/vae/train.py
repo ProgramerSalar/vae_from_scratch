@@ -6,7 +6,7 @@ from einops import rearrange
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-sys.path.append("/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/video_vae")
+sys.path.append("/content/vae_from_scratch/video_vae")
 from loss.lpips import Lpips
 from dataset.video_dataset import VideoDataset
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     ])
 
     # Instantiate the Dataset
-    video_dataset = VideoDataset(video_dir='/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/Data', num_frames=16, transform=data_transform)
+    video_dataset = VideoDataset(video_dir='/content/vae_from_scratch/Data', num_frames=16, transform=data_transform)
     print(f"Dataset created with {len(video_dataset)} videos.")
     data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
 
@@ -48,20 +48,24 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         
         for batch in data_loader:
-            batch = rearrange(batch, 'b t c h w -> b c t h w')
-            target = rearrange(batch, 'b c t h w -> (b t) c h w')
+            batch = rearrange(batch, 'b t c h w -> b c t h w').to(device)
+            target = rearrange(batch, 'b c t h w -> (b t) c h w').to(device)
 
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
+            print(batch.shape), print("---target", target.shape)
+
+            with torch.autocast(device_type="cuda", dtype=torch.float32):
                 output = model(batch)
-                output = rearrange(batch, 'b t c h w -> (b t) c h w')
+                output = rearrange(batch, 'b c t h w -> (b t) c h w')
+
+                print(f"output_shape: {output.shape}")
                 loss = loss_fn(output, target)
                 loss = loss.mean()
                 print(f"Loss: {loss.item()}")
 
             scaler.scale(loss).backward()
 
-            scaler.unscale_(optimizer)
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # scaler.unscale_(optimizer)
+            # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
             scaler.step(optimizer)
             scaler.update()

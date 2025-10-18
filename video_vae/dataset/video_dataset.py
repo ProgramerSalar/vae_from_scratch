@@ -128,10 +128,11 @@ if __name__ == '__main__':
 
     # 5. Iterate through the data
     print("\nIterating through one batch of data:")
-    for batch in data_loader:
+    for batch, label in data_loader:
         # The 'batch' is a tensor containing the video frames
         # Shape: (batch_size, num_frames, channels, height, width)
         print(f"Batch shape: {batch.shape}")
+        print(f"label: >>> {label.shape}")
         # Example: torch.Size([2, 16, 3, 224, 224])
         
         # You can now feed this batch to your model
