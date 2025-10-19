@@ -27,6 +27,12 @@ if __name__ == "__main__":
     print(f"Dataset created with {len(video_dataset)} videos.")
     data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
 
+    # Test dataset 
+    test_dataset = VideoDataset(video_dir='/content/vae_from_scratch/Data/test_dataset', num_frames=16, transform=data_transform)
+    print(f"Dataset created with {len(test_dataset)} videos.")
+    data_loader = DataLoader(test_dataset, batch_size=2, shuffle=True, num_workers=2)
+
+
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     x = torch.randn(2, 3, 8, 256, 256).to(device)
@@ -49,18 +55,20 @@ if __name__ == "__main__":
         
         for batch in data_loader:
             batch = rearrange(batch, 'b t c h w -> b c t h w').to(device)
-            target = rearrange(batch, 'b c t h w -> (b t) c h w').to(device)
 
-            print(batch.shape), print("---target", target.shape)
+            print(batch.shape)
 
             with torch.autocast(device_type="cuda", dtype=torch.float32):
                 output = model(batch)
                 output = rearrange(batch, 'b c t h w -> (b t) c h w')
 
                 print(f"output_shape: {output.shape}")
-                loss = loss_fn(output, target)
-                loss = loss.mean()
-                print(f"Loss: {loss.item()}")
+                for target in test_dataset:
+                    target = rearrange(target, 'b t c h w -> (b t) c h w').to(device)
+
+                    loss = loss_fn(output, target)
+                    loss = loss.mean()
+                    print(f"Loss: {loss.item()}")
 
             scaler.scale(loss).backward()
 
