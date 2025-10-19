@@ -23,7 +23,7 @@ if __name__ == "__main__":
     ])
 
     # Instantiate the Dataset
-    video_dataset = VideoDataset(video_dir='/content/vae_from_scratch/Data', num_frames=16, transform=data_transform)
+    video_dataset = VideoDataset(video_dir='/content/vae_from_scratch/Data/train_dataset', num_frames=16, transform=data_transform)
     print(f"Dataset created with {len(video_dataset)} videos.")
     data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
 
@@ -55,25 +55,27 @@ if __name__ == "__main__":
         
         for batch in data_loader:
             batch = rearrange(batch, 'b t c h w -> b c t h w').to(device)
+            print(f"train dataset shape: >>> {batch.shape}")
 
-            print(batch.shape)
+            output = model(batch)
+            output = rearrange(batch, 'b c t h w -> (b t) c h w')
+            print(f"output_shape: {output.shape}")
 
+              
+        for target in test_dataset:
             with torch.autocast(device_type="cuda", dtype=torch.float32):
-                output = model(batch)
-                output = rearrange(batch, 'b c t h w -> (b t) c h w')
+                # target = rearrange(target, 'b t c h w -> (b t) c h w').to(device)
+                print(f"target dataset shape: >>>>>>{target.shape}")
 
-                print(f"output_shape: {output.shape}")
-                for target in test_dataset:
-                    target = rearrange(target, 'b t c h w -> (b t) c h w').to(device)
+            # loss = loss_fn(output, target)
+            # loss = loss.mean()
+            # print(f"Loss: {loss.item()}")
 
-                    loss = loss_fn(output, target)
-                    loss = loss.mean()
-                    print(f"Loss: {loss.item()}")
+            # scaler.scale(loss).backward()
 
-            scaler.scale(loss).backward()
+            # # scaler.unscale_(optimizer)
+            # # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-            # scaler.unscale_(optimizer)
-            # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # scaler.step(optimizer)
+            # scaler.update()
 
-            scaler.step(optimizer)
-            scaler.update()
