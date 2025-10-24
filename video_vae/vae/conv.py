@@ -9,7 +9,6 @@ class CausalConv3d(nn.Module):
     def __init__(self,
                  in_channels: int,
                  out_channel: int,
-                 device,
                  kernel_size: int = 3,
                  stride=1):
         
@@ -20,7 +19,7 @@ class CausalConv3d(nn.Module):
                               kernel_size=kernel_size,
                               stride=stride,
                               padding=1,
-                              device=device)
+                              )
         
 
     def forward(self, x):
@@ -34,14 +33,13 @@ class CausalGroupNorm(nn.Module):
     def __init__(self,
                  in_channels,
                  num_groups,
-                 device,
                  eps=1e-5,
                  ):
         super().__init__()
         self.norm = nn.GroupNorm(num_groups=num_groups,
                                  num_channels=in_channels,
                                  eps=eps,
-                                 device=device)
+                                 )
         
 
     def forward(self, x):
@@ -61,7 +59,7 @@ if __name__ == "__main__":
 
     model = CausalConv3d(in_channels=128,
                          out_channel=3,
-                         device=device)
+                        )
     
     
     x = torch.randn(2, 128, 8, 256, 256)

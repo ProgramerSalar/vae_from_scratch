@@ -11,7 +11,7 @@ class MiddleLayer(nn.Module):
     def __init__(self,
                  in_channels,
                  num_groups,
-                 device):
+                 ):
         super().__init__()
 
         
@@ -21,7 +21,7 @@ class MiddleLayer(nn.Module):
                 in_channels=in_channels,
                 out_channels=in_channels,
                 num_groups=num_groups,
-                device=device
+                
             )
         ]
 
@@ -35,7 +35,7 @@ class MiddleLayer(nn.Module):
                 in_channels=in_channels,
                 out_channels=in_channels,
                 num_groups=num_groups,
-                device=device
+                
             )
         )
 

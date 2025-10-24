@@ -33,13 +33,15 @@ class Lpips(nn.Module):
         
         scale_input, scale_target = (self.scaling_layer(x), self.scaling_layer(target))
         vgg_input, vgg_target = self.vgg(scale_input), self.vgg(scale_target)
+        # print(vgg_input[4].shape)
 
         output = 0
         for channel in range(len(self.channels)):
 
             # normalize the tensor
             norm_input, norm_target = normalize_tensor(vgg_input[channel]), normalize_tensor(vgg_target[channel])
-          
+
+            # calculate the difference
             diff_out = (norm_input - norm_target) **2
 
             # calculate the perceptual weight
@@ -91,7 +93,7 @@ class NetLinearLayer(nn.Module):
                       bias=False)
         )
         self.model = nn.Sequential(*layers)
-        print(self.model)
+        # print(self.model)
 
     def forward(self, x):
         x = self.model(x)
@@ -193,7 +195,8 @@ def spatial_avg(x, keepdim=True):
 if __name__ == "__main__":
 
     # model = Vgg16()
-    # x = torch.randn(2, 3, 512, 512)
+    # print(model)
+    # x = torch.randn(2, 3, 256, 256)
     # out = model(x)
     # print(out[4].shape)
     # --------------------
@@ -205,12 +208,14 @@ if __name__ == "__main__":
     # -------------------------
 
     model = Lpips()
+    print(model)
     input = torch.randn(2, 3, 256, 256)
     target = torch.randn(2, 3, 256, 256)
 
     out = model(input, target)
-    loss = out.mean()
-    print(loss.item())
+    print(out) # [2, 1, 1, 1]
+    # loss = out.mean()
+    # print(loss.item())
 
     # print(normalize_tensor(input))
     # print(spatial_avg(input).shape)

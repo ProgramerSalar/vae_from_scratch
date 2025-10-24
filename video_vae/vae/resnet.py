@@ -10,27 +10,26 @@ class CausalResnet3d(nn.Module):
                  in_channels: int,
                  out_channels: int,
                  num_groups: int,
-                 device):
+                 ):
         
         super().__init__()
         
 
         self.norm1 = CausalGroupNorm(in_channels=in_channels,
                                      num_groups=num_groups,
-                                     device=device,
                                      )
 
         self.conv1 = CausalConv3d(in_channels=in_channels,
                                   out_channel=out_channels,
-                                  device=device)
+                                  )
         
         self.norm2 = CausalGroupNorm(in_channels=out_channels,
                                      num_groups=num_groups,
-                                     device=device)
+                                     )
         
         self.conv2 = CausalConv3d(in_channels=out_channels,
                                   out_channel=out_channels,
-                                  device=device)
+                                 )
         
         
         self.dropout = nn.Dropout()
@@ -42,7 +41,6 @@ class CausalResnet3d(nn.Module):
         if in_channels != out_channels:
             self.increment_conv = CausalConv3d(in_channels=in_channels,
                                                out_channel=output_channels,
-                                               device=device,
                                                kernel_size=3)
         
     def forward(self, x):
@@ -71,7 +69,6 @@ class DecreaseFeature(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 device,
                  ):
         super().__init__()
         
@@ -79,7 +76,6 @@ class DecreaseFeature(nn.Module):
         stride = (1, 2, 2)
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channel=out_channels,
-                                 device=device,
                                  stride=stride)
         
     def forward(self, x):
@@ -94,7 +90,6 @@ class DecreaseFrame(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 device,
                  ):
         super().__init__()
         
@@ -102,7 +97,6 @@ class DecreaseFrame(nn.Module):
         stride = (2, 1, 1)
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channel=out_channels,
-                                 device=device,
                                  stride=stride)
         
     def forward(self, x):
@@ -117,15 +111,14 @@ class IncreaseFeature(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 device):
+                 ):
         
         super().__init__()
 
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channel=out_channels * 4,
                                  kernel_size=3,
-                                 stride=1,
-                                 device=device)
+                                 stride=1)
 
         
     def forward(self, x):
@@ -144,13 +137,13 @@ class IncreaseFrame(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 device):
+                 ):
         
         super().__init__()
         self.conv = CausalConv3d(in_channels=in_channels,
                                  out_channel=out_channels * 2,
                                  kernel_size=3,
-                                 device=device)
+                                 )
         
 
     def forward(self, x):
@@ -198,7 +191,7 @@ if __name__ == "__main__":
 
     model = IncreaseFrame(in_channels=512, 
                           out_channels=512,
-                          device=device)
+                          )
     
     x = torch.randn(2, 512, 1, 16, 16)
     out = model(x)

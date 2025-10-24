@@ -9,7 +9,6 @@ class CausalDeownBlock(nn.Module):
                  in_channels,
                  out_channels,
                  num_groups,
-                 device,
                  enc_feature=False,
                  enc_frame=True
                  ):
@@ -30,7 +29,7 @@ class CausalDeownBlock(nn.Module):
                 CausalResnet3d(in_channels=input_channels,
                                out_channels=out_channels,
                                num_groups=num_groups,
-                               device=device)
+                               )
             )
 
         
@@ -39,7 +38,7 @@ class CausalDeownBlock(nn.Module):
             # <-- feature descrease --> 
             self.descrease_feature = DecreaseFeature(in_channels=out_channels,
                                                     out_channels=out_channels,
-                                                    device=device)
+                                                    )
             
         
         
@@ -47,7 +46,7 @@ class CausalDeownBlock(nn.Module):
             # <-- frame descrease --> 
             self.descrease_frame = DecreaseFrame(in_channels=out_channels,
                                                 out_channels=out_channels,
-                                                device=device)
+                                                )
             
         
         
@@ -79,7 +78,6 @@ class causalUpperBlock(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
-                 device,
                  num_groups,
                  dec_feature=True,
                  dec_frame=True):
@@ -96,20 +94,20 @@ class causalUpperBlock(nn.Module):
                 CausalResnet3d(in_channels=input_channels,
                                out_channels=out_channels,
                                num_groups=num_groups,
-                               device=device)
+                               )
             )
 
         if self.dec_feature:
             # <-- Increase the feature --> 
             self.incr_feature = IncreaseFeature(in_channels=out_channels,
                                                 out_channels=out_channels,
-                                                device=device)
+                                                )
         
         if self.dec_frame:
             # <-- Increment the frame --> 
             self.incr_frame = IncreaseFrame(in_channels=out_channels,
                                             out_channels=out_channels,
-                                            device=device)
+                                            )
         
         
 
@@ -136,26 +134,26 @@ class causalUpperBlock(nn.Module):
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = CausalDeownBlock(in_channels=128,
-                             out_channels=256,
-                             num_groups=2,
-                             device=device)
-    print(model)
+    # model = CausalDeownBlock(in_channels=128,
+    #                          out_channels=256,
+    #                          num_groups=2,
+    #                          device=device)
+    # print(model)
 
-    learnable_parameters = sum(parm.numel() for parm in model.parameters())
-    print(f"learnable_parameters = {learnable_parameters / 1000000 :.3f} Million")
+    # learnable_parameters = sum(parm.numel() for parm in model.parameters())
+    # print(f"learnable_parameters = {learnable_parameters / 1000000 :.3f} Million")
 
 
-    x = torch.randn(2, 128, 8, 256, 256)
-    out = model(x)
-    print(out.shape)
-    # ---
-    # model = causalUpperBlock(in_channels=256,
-    #                          out_channels=128,
-    #                          device=device,
-    #                          num_groups=2)
-    
-    # x = torch.randn(2, 256, 1, 16, 16)
+    # x = torch.randn(2, 128, 8, 256, 256)
     # out = model(x)
     # print(out.shape)
+    # ---
+    model = causalUpperBlock(in_channels=256,
+                             out_channels=128,
+                             device=device,
+                             num_groups=2)
+    
+    x = torch.randn(2, 256, 1, 16, 16)
+    out = model(x)
+    print(out.shape)    # [2, 128, 2, 32, 32]
         
