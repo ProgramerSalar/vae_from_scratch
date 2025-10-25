@@ -8,10 +8,10 @@ from conv import CausalConv3d, CausalGroupNorm
 class Encoder(nn.Module):
 
     def __init__(self,
+                 num_groups,
                  channels=[128, 256, 512, 512],
                  in_channels=3,
                  conv_out_channels=3,
-                 num_groups=2,
                  enc_feature=(True, True, True, False),
                  enc_frame=(True, True, True, False)):
         

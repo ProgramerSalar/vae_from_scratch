@@ -9,9 +9,9 @@ from middle import MiddleLayer
 class Decoder(nn.Module):
 
     def __init__(self,
+                 num_groups,
                  in_channels=3,
                  out_channels=3,
-                 num_groups=2,
                  channels = [128, 256, 512, 512],
                  dec_feature = (True, True, True, False),
                  dec_frame = (True, True, True, False)):

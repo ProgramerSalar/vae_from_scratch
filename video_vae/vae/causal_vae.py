@@ -14,12 +14,13 @@ from gaussian import DiagonalGaussianDistribution
 class CausalVAE(nn.Module):
 
     def __init__(self,
+                 num_groups,
                  encoder_out_channels=3,):
 
         super().__init__()
         
-        self.encoder = Encoder()
-        self.decoder = Decoder(num_groups=2)
+        self.encoder = Encoder(num_groups=num_groups)
+        self.decoder = Decoder(num_groups=num_groups)
 
         self.quant_conv = CausalConv3d(in_channels=2*encoder_out_channels,
                                        out_channel=2*encoder_out_channels,

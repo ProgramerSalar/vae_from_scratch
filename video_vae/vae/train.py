@@ -35,11 +35,11 @@ if __name__ == "__main__":
 
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    x = torch.randn(2, 3, 8, 256, 256).to(device)
-    target = torch.randn(2, 3, 8, 256, 256).to(device)
-    target = rearrange(target, 'b c t h w -> (b t) c h w')
+    # x = torch.randn(2, 3, 8, 256, 256).to(device)
+    # target = torch.randn(2, 3, 8, 256, 256).to(device)
+    # target = rearrange(target, 'b c t h w -> (b t) c h w')
 
-    model = CausalVAE().to(device)
+    model = CausalVAE(num_groups=1).to(device)
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=0.0001)
     scaler = torch.amp.GradScaler(device=device)
     # loss_fn = torch.nn.MSELoss()
