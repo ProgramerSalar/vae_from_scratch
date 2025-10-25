@@ -23,6 +23,7 @@ class LossFunction(nn.Module):
                  perceptual_weight=1.0,
                  pixelloss_weight=1.0,
                  logvar_init=0.0,
+                 kl_weight=1.0,
                  # <-- Discriminator --> ## 
                  disc_factor=1.0,
                  disc_start=0,
@@ -36,6 +37,7 @@ class LossFunction(nn.Module):
         self.disc_factor = disc_factor
         self.disc_start = disc_start
         self.disc_weight = disc_weight
+        self.kl_weight = kl_weight
 
         """
             perceptual_weight: you can turn to fine-tune how much your model cares about making images that look right to a human eye.
@@ -72,63 +74,97 @@ class LossFunction(nn.Module):
                 reconstruct, 
                 posteriors, 
                 global_step, 
-                last_layer):
+                last_layer,
+                optimizer_idx):
 
         input = rearrange(input, 'b c t h w -> (b t) c h w').contiguous()
         target = rearrange(reconstruct, 'b c t h w -> (b t) c h w').contiguous()
 
-        ##  calculate the reconstruction loss 
-        # calculate the mean square error 
-        mse_loss = nn.functional.mse_loss(input=input,
-                                          target=target,
-                                          reduction='none')
-        
-        # calculate the dim along [channels, height, width]
-        rec_loss = torch.mean(input=mse_loss,
-                              dim=(1, 2, 3),
-                              keepdim=True)
-        
-        if self.perceptual_weight > 0:
+        if optimizer_idx == 0:
+
+            ##  calculate the reconstruction loss 
+            # calculate the mean square error 
+            mse_loss = nn.functional.mse_loss(input=input,
+                                            target=target,
+                                            reduction='none')
             
-            perceputual_loss = self.lpips(input, target)
-            # print(perceputual_loss.shape)
-            nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
+            # calculate the dim along [channels, height, width]
+            rec_loss = torch.mean(input=mse_loss,
+                                dim=(1, 2, 3),
+                                keepdim=True)
+            
+            if self.perceptual_weight > 0:
+                
+                perceputual_loss = self.lpips(input, target)
+                # print(perceputual_loss.shape)
+                nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
 
-        nll_loss = nll_loss / torch.exp(self.logvar) + self.logvar  # [16, 1, 1, 1]
-        weighted_nll_loss = nll_loss
-        weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
-        nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
+            nll_loss = nll_loss / torch.exp(self.logvar) + self.logvar  # [16, 1, 1, 1]
+            weighted_nll_loss = nll_loss
+            weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
+            nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
 
-        kl_loss = posteriors.kl()
-        kl_loss = torch.mean(kl_loss)
+            kl_loss = posteriors.kl()
+            kl_loss = torch.mean(kl_loss)
+            
+            disc_factor = adopt_weight(
+                weight=self.disc_factor,
+                global_step=global_step,
+                threshold=0
+            )
+
+            if disc_factor > 0.0:
+                logits_fake = self.discriminator(target)    # [16, 1, 14, 14]
+                g_loss = -torch.mean(logits_fake)
+
+                nll_grads = torch.autograd.grad(outputs=nll_loss,
+                                                inputs=last_layer,
+                                                retain_graph=True
+                                                )[0]
+            
+                g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
+                d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-6)
+                d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
+                d_weight = d_weight * self.disc_weight
+
+
+            loss = (
+            weighted_nll_loss 
+            + self.kl_weight * kl_loss
+            + d_weight * disc_factor * g_loss
+            )
+            
+            return loss.mean()
         
-        disc_factor = adopt_weight(
-            weight=self.disc_factor,
-            global_step=global_step,
-            threshold=0
-        )
+        if optimizer_idx == 1:
 
-        if disc_factor > 0.0:
-            logits_fake = self.discriminator(target)    # [16, 1, 14, 14]
-            g_loss = -torch.mean(logits_fake)
+            # data = [batch, channels, height, width]
 
-            # try:
-            print(f"what is the shape of nll_loss: >>>>>>>>>> {nll_loss}")
-            print(f"what is the last_layer <<<<<<<<< {last_layer.shape}")
-            nll_grads = torch.autograd.grad(outputs=nll_loss,
-                                            inputs=last_layer,
-                                            )
-            print(">>>>>>>>> nll_grads:", nll_grads)
+            real_logits = self.discriminator(input)
+            fake_logits = self.discriminator(reconstruct)
 
-            # except RuntimeError:
-            #     ValueError("Try block is not working, sorry")
+            disc_factor = adopt_weight(
+                weight=self.disc_factor,
+                global_step=global_step,
+                threshold=0,    
+            )
+
+            d_loss = disc_factor * hinge_disc_loss(real_logits, fake_logits)
+            
+            return d_loss
+
             
 
-        
-            
+
+    
             
                 
+def hinge_disc_loss(logits_real, logits_fake):
 
+    loss_real = torch.mean(nn.functional.relu(1.0 - logits_real))
+    loss_fake = torch.mean(nn.functional.relu(1.0 + logits_fake))
+    d_loss = 0.5 * (loss_real + loss_fake)
+    return d_loss
         
 
 

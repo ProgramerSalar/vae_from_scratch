@@ -25,13 +25,9 @@ if __name__ == "__main__":
     # Instantiate the Dataset
     video_dataset = VideoDataset(video_dir='../../vae_from_scratch/Data/train_dataset', num_frames=16, transform=data_transform)
     print(f"Dataset created with {len(video_dataset)} videos.")
-    data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
+    data_loader = DataLoader(video_dataset, batch_size=1, shuffle=True, num_workers=2)
 
-    # Test dataset 
-    test_dataset = VideoDataset(video_dir='../../vae_from_scratch/Data/test_dataset', num_frames=16, transform=data_transform)
-    print(f"Dataset created with {len(test_dataset)} videos.")
-    test_loader = DataLoader(test_dataset, batch_size=2, shuffle=True, num_workers=2)
-
+   
 
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -43,7 +39,7 @@ if __name__ == "__main__":
     optimizer = torch.optim.AdamW(params=model.parameters(), lr=0.0001)
     scaler = torch.amp.GradScaler(device=device)
     # loss_fn = torch.nn.MSELoss()
-    loss_fn = LossFunction()
+    loss_fn = LossFunction().to(device)
     # print(loss_fn)
 
     torch.autograd.set_detect_anomaly(True)
@@ -54,17 +50,24 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         
         for batch in data_loader:
+            print(f"epoch --> {epoch}")
             batch = rearrange(batch, 'b t c h w -> b c t h w').to(device)
             batch = batch.contiguous()
-            # print(f"train dataset shape: >>> {batch.shape}")
+            print(f"train dataset shape: >>> {batch.shape}")
 
-            output = model(batch)
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                posterior, reconstruct = model(batch)
+                print(posterior, reconstruct.shape)
+
+                losses = loss_fn(batch, reconstruct, posterior, epoch, model.get_last_layer(), 1)
+                print(f"losses  -> {losses}")
             
 
               
         
 
-            # scaler.scale(loss).backward()
+            # scaler.scale(losses).backward()
+            # losses.backward()
 
             # # scaler.unscale_(optimizer)
             # # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)

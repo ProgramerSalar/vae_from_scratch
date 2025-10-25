@@ -109,27 +109,32 @@ class Vgg16(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.vgg_pretriend_feature = models.vgg16().features
+        vgg_pretriend_feature = models.vgg16().features
+        for module in  vgg_pretriend_feature:
+            if isinstance(module, nn.ReLU):
+                module.inplace = False
+            
       
         self.slice1 = nn.Sequential()
         for i in range(4):
-            self.slice1.add_module(name=str(i) , module=self.vgg_pretriend_feature[i])
+            self.slice1.add_module(name=str(i) , module=vgg_pretriend_feature[i])
+
 
         self.slice2 = nn.Sequential()
         for i in range(4, 9):
-            self.slice2.add_module(name=str(i), module=self.vgg_pretriend_feature[i])
+            self.slice2.add_module(name=str(i), module=vgg_pretriend_feature[i])
 
         self.slice3 = nn.Sequential()
         for i in range(8, 16):
-            self.slice3.add_module(name=str(i), module=self.vgg_pretriend_feature[i])
+            self.slice3.add_module(name=str(i), module=vgg_pretriend_feature[i])
 
         self.slice4 = nn.Sequential()
         for i in range(16, 23):
-            self.slice4.add_module(name=str(i), module=self.vgg_pretriend_feature[i])
+            self.slice4.add_module(name=str(i), module=vgg_pretriend_feature[i])
 
         self.slice5 = nn.Sequential()
         for i in range(23, 30):
-            self.slice5.add_module(name=str(i), module=self.vgg_pretriend_feature[i])
+            self.slice5.add_module(name=str(i), module=vgg_pretriend_feature[i])
 
 
         # print(self.slice1)
@@ -138,7 +143,7 @@ class Vgg16(nn.Module):
         # print(self.slice4)
         # print(self.slice5)
 
-        for param in self.vgg_pretriend_feature.parameters():
+        for param in vgg_pretriend_feature.parameters():
             param.requires_grad = False
             
     def forward(self, x):
