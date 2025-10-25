@@ -1,7 +1,7 @@
 import torch 
 from torch import nn 
 import sys 
-sys.path.append('/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/video_vae/vae')
+sys.path.append('../../vae_from_scratch/video_vae')
 
 
 from enc import Encoder

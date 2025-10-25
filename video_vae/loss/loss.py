@@ -2,10 +2,10 @@ import torch
 from torch import nn 
 from einops import rearrange
 import sys 
-sys.path.append("/home/manish/Desktop/projects/vae_from_scratch/vae_from_scratch/video_vae")
+sys.path.append("../../vae_from_scratch/video_vae")
 
-from discriminator import NumberLayerDiscriminator
-from lpips import Lpips
+from loss.discriminator import NumberLayerDiscriminator
+from loss.lpips import Lpips
 from vae.gaussian import DiagonalGaussianDistribution
 from vae.causal_vae import CausalVAE
 from vae.enc import Encoder
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     print(f"Dataset created with {len(video_dataset)} videos.")
     data_loader = DataLoader(video_dataset, batch_size=2, shuffle=True, num_workers=2)
     x = next(iter(data_loader))
-    x = rearrange(x, 'b t c h w -> b c t h w')
+    x = rearrange(x, 'b t c h w -> b c t h w').contiguous()
     
 
     # Test dataset 
@@ -180,7 +180,7 @@ if __name__ == "__main__":
     print(f"Dataset created with {len(test_dataset)} videos.")
     test_loader = DataLoader(test_dataset, batch_size=2, shuffle=True, num_workers=2)
     target = next(iter(test_loader))
-    target = rearrange(target, 'b t c h w -> b c t h w')
+    target = rearrange(target, 'b t c h w -> b c t h w').contiguous()
   
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = LossFunction().to(device)
@@ -193,8 +193,8 @@ if __name__ == "__main__":
 
     
     vae = CausalVAE().to(device)
+    print(vae)
     posterior, reconstruct = vae(x)
-
     out = model(x, reconstruct, posterior, 100, vae.get_last_layer())
     print(out)
     # ----------------------------------------------------------------------------
