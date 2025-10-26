@@ -1,7 +1,7 @@
 import torch 
 from torch import nn 
 
-from resnet import CausalResnet3d, DecreaseFeature, DecreaseFrame, IncreaseFeature, IncreaseFrame
+from .resnet import CausalResnet3d, DecreaseFeature, DecreaseFrame, IncreaseFeature, IncreaseFrame
 
 class CausalDeownBlock(nn.Module):
 

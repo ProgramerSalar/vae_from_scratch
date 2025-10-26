@@ -1,9 +1,9 @@
 import torch 
 from torch import nn 
 
-from block import CausalDeownBlock
-from middle import MiddleLayer
-from conv import CausalConv3d, CausalGroupNorm
+from .block import CausalDeownBlock
+from .middle import MiddleLayer
+from .conv import CausalConv3d, CausalGroupNorm
 
 class Encoder(nn.Module):
 

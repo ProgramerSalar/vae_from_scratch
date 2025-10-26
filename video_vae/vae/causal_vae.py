@@ -4,11 +4,10 @@ import sys
 sys.path.append('../../vae_from_scratch/video_vae')
 
 
-from enc import Encoder
-from conv import CausalConv3d
-from middle import MiddleLayer
-from dec import Decoder
-from gaussian import DiagonalGaussianDistribution
+from .enc import Encoder
+from .conv import CausalConv3d
+from .dec import Decoder
+from .gaussian import DiagonalGaussianDistribution
 
 
 class CausalVAE(nn.Module):
@@ -22,29 +21,14 @@ class CausalVAE(nn.Module):
         self.encoder = Encoder(num_groups=num_groups)
         self.decoder = Decoder(num_groups=num_groups)
 
-        self.quant_conv = CausalConv3d(in_channels=2*encoder_out_channels,
-                                       out_channel=2*encoder_out_channels,
-                                       kernel_size=1,
-                                       stride=1)
         
-        self.post_quant_conv = CausalConv3d(in_channels=encoder_out_channels,
-                                            out_channel=encoder_out_channels,
-                                            kernel_size=1,
-                                            stride=1)
-        
-        
-        
-        
-
     def get_last_layer(self):
 
         # [2, 3*2, 8, 256, 256]
         out = self.decoder.conv_out.conv.weight
         return out
     
-        
-
-
+    
     def forward(self, x):
 
         h = self.encoder(x)

@@ -2,8 +2,8 @@ import torch
 from torch import nn 
 from einops import rearrange
 
-from resnet import CausalResnet3d
-from attention import AttentionLayer
+from .resnet import CausalResnet3d
+from .attention import AttentionLayer
 
 
 class MiddleLayer(nn.Module):

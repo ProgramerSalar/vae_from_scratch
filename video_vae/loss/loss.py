@@ -44,34 +44,16 @@ class LossFunction(nn.Module):
 
         """
             perceptual_weight: you can turn to fine-tune how much your model cares about making images that look right to a human eye.
+            pixelloss_weight: calculate the losses to image pixel wise.
+            disc_factor: filter the value to be range of 1.0 that's real when value to lower than 0 the more chance that has fake value.
+            disc_weight: Balancing value of discriminator fake and real data.
         """
 
         self.discriminator = NumberLayerDiscriminator(in_channels=disc_in_channels)
         self.lpips = Lpips().eval()
         self.logvar = nn.Parameter(data=torch.ones(()) * logvar_init)
 
-    
-    def calculate_adaptive_weight(self,
-                                  nll_loss,
-                                  g_loss,
-                                  last_layer=None):
-        
-        assert last_layer is not None, "make sure last_layer is not None."
-        nll_grads = torch.autograd.grad(outputs=nll_loss,
-                                        inputs=last_layer,
-                                        )
-        
-
-        print(">>>>>,", nll_grads)
-
-        return nll_grads
-
-
-        
-
-        
-       
-
+ 
     def forward(self, 
                 input, 
                 reconstruct, 
@@ -86,15 +68,9 @@ class LossFunction(nn.Module):
         if optimizer_idx == 0:
 
             ##  calculate the reconstruction loss 
-            # calculate the mean square error 
-            mse_loss = nn.functional.mse_loss(input=input,
-                                            target=target,
-                                            reduction='none')
-            
-            # calculate the dim along [channels, height, width]
-            rec_loss = torch.mean(input=mse_loss,
-                                dim=(1, 2, 3),
-                                keepdim=True)
+            rec_loss = torch.mean(nn.functional.mse_loss(input, target, reduction='none'),
+                                  dim=(1, 2, 3),
+                                  keepdim=True)
             
             if self.perceptual_weight > 0:
                 
@@ -103,7 +79,7 @@ class LossFunction(nn.Module):
                 # print(perceputual_loss.shape)
                 nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
 
-            nll_loss = nll_loss / torch.exp(self.logvar) + self.logvar  # [16, 1, 1, 1]
+            nll_loss = nll_loss / torch.exp(self.logvar) + self.logvar  
             weighted_nll_loss = nll_loss
             weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
             nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
@@ -119,7 +95,7 @@ class LossFunction(nn.Module):
 
             if disc_factor > 0.0:
                 # [16, 3, 256, 256] -> [16, 1, 14, 14]
-                logits_fake = self.discriminator(target)    # [16, 1, 14, 14]
+                logits_fake = self.discriminator(target)    
                 g_loss = -torch.mean(logits_fake)
 
                 nll_grads = torch.autograd.grad(outputs=nll_loss,
@@ -138,8 +114,17 @@ class LossFunction(nn.Module):
             + self.kl_weight * kl_loss
             + d_weight * disc_factor * g_loss
             )
+
+            log = {
+                f"total_loss: {loss.mean()},",
+                f"kl_loss: {kl_loss.mean()}",
+                f"nll_loss: {nll_loss.mean()}",
+                f"rec_loss: {rec_loss.mean()}",
+                f"perceptual_loss: {perceputual_loss.mean()}",
+                f"g_loss: {g_loss.mean()}"
+            }
             
-            return loss.mean()
+            return log, loss
         
         if optimizer_idx == 1:
 
@@ -154,12 +139,16 @@ class LossFunction(nn.Module):
             d_loss = hinge_disc_loss(logits_real=real_logits,
                                      logits_fake=fake_logits)
             
-            return d_loss
+            log = {
+                f"disc_loss: {d_loss.mean()}",
+                f"logits_real: {real_logits.mean()}",
+                f"logits_fake: {fake_logits.mean()}"
+            }
+            
+            
+            return log, d_loss
 
             
-
-
-    
             
                 
 def hinge_disc_loss(logits_real, logits_fake):
