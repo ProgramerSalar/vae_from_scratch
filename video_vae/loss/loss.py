@@ -5,7 +5,10 @@ import sys
 sys.path.append("../../vae_from_scratch/video_vae")
 
 from loss.discriminator import NumberLayerDiscriminator
+# from discriminator import NumberLayerDiscriminator
 from loss.lpips import Lpips
+# from lpips import Lpips
+
 from vae.gaussian import DiagonalGaussianDistribution
 from vae.causal_vae import CausalVAE
 from vae.enc import Encoder
@@ -95,6 +98,7 @@ class LossFunction(nn.Module):
             
             if self.perceptual_weight > 0:
                 
+                # [16, 3, 256, 256] -> [16, 1, 1, 1]
                 perceputual_loss = self.lpips(input, target)
                 # print(perceputual_loss.shape)
                 nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
@@ -114,6 +118,7 @@ class LossFunction(nn.Module):
             )
 
             if disc_factor > 0.0:
+                # [16, 3, 256, 256] -> [16, 1, 14, 14]
                 logits_fake = self.discriminator(target)    # [16, 1, 14, 14]
                 g_loss = -torch.mean(logits_fake)
 
@@ -138,18 +143,16 @@ class LossFunction(nn.Module):
         
         if optimizer_idx == 1:
 
-            # data = [batch, channels, height, width]
-
+            # [16, 3, 256, 256] -> [16, 1, 14, 14]
             real_logits = self.discriminator(input)
-            fake_logits = self.discriminator(reconstruct)
-
-            disc_factor = adopt_weight(
-                weight=self.disc_factor,
-                global_step=global_step,
-                threshold=0,    
-            )
-
-            d_loss = disc_factor * hinge_disc_loss(real_logits, fake_logits)
+            fake_logits = self.discriminator(target)
+            
+            disc_factor = adopt_weight(weight=self.disc_factor,
+                                       global_step=global_step,
+                                       threshold=0)
+            
+            d_loss = hinge_disc_loss(logits_real=real_logits,
+                                     logits_fake=fake_logits)
             
             return d_loss
 
@@ -163,6 +166,7 @@ def hinge_disc_loss(logits_real, logits_fake):
 
     loss_real = torch.mean(nn.functional.relu(1.0 - logits_real))
     loss_fake = torch.mean(nn.functional.relu(1.0 + logits_fake))
+
     d_loss = 0.5 * (loss_real + loss_fake)
     return d_loss
         

@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 posterior, reconstruct = model(batch)
                 print(posterior, reconstruct.shape)
 
-                losses = loss_fn(batch, reconstruct, posterior, epoch, model.get_last_layer(), 1)
+                losses = loss_fn(batch, reconstruct, posterior, epoch, model.get_last_layer(), 0)
                 print(f"losses  -> {losses}")
             
 
