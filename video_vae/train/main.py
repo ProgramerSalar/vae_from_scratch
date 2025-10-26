@@ -1,85 +1,69 @@
 import torch 
-import sys
-from torch.distributed import is_available 
-sys.path.append('/content/vae_from_scratch/video_vae')
+from torch import nn 
+import sys 
+from einops import rearrange
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
-from train.args import get_args
-
-from vae.wrapper import CausalVideoVAELossWrapper
-from middleware.start_distributed_mode import init_distributed_mode
-from middleware.gpu_processes import initialized_context_parallel
-from train_controllers.optimizer_handlers import Optimizer_handler
-from train_controllers.loss_scaler import LossScaler
-from train_controllers.scheduler import cosine_scheduler
-from train_controllers.train_epoch import train_epoch
-
-
-def main(args):
-
-    # start the distributed mode
-    init_distributed_mode(args=args)
-
-    if args.use_context_parallel:
-        initialized_context_parallel(context_parallel_size=args.context_size)
-
-    model_dtype = args.model_dtype
-    model = CausalVideoVAELossWrapper().to("cuda:0").half()
-    # print(">>>>>>>>>", model)
-
-    # x = torch.randn(2, 3, 8, 256, 256).to("cuda:0").half()
-    # out = model(x, step=10)
-    # print(out)
-   
-
-    number_learnable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total number of learnable paramters: {number_learnable_parameters / 1e6} Million") # 236M
-
-    number_fix_parameters = sum(p.numel() for p in model.parameters() if not p.requires_grad)
-    print(f"Total number of fixed parameters: {number_fix_parameters / 1e6} Million")         # 124M
-
-    optimizer = Optimizer_handler(model=model.vae)
-    optimizer_disc = Optimizer_handler(model=model.loss.discriminator)
-    # print(f"optimizer: >>>> {optimizer}")
-
-    # print(model.loss.discriminator)
-
-    loss_scaler = LossScaler()
-    loss_scaler_disc = LossScaler()
-
-    lr_schedule_values = cosine_scheduler()
-    lr_schedule_values_disc = cosine_scheduler()
-
-    # print(f"lr_schedule_values: >>>>>>>>>>>>> {len(lr_schedule_values)}")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else None)
-
-    torch.distributed.barrier()
-
-    for epoch in range(0, 10):
-      print(f"--------------------------> epoch: {epoch}")
-      train_epoch(model=model,
-                optimizer=optimizer,
-                optimizer_disc=optimizer_disc,
-                epoch=epoch,
-                lr_scheduler_values=lr_schedule_values,
-                lr_scheduler_values_disc= lr_schedule_values_disc)
-
-    
-
-    
-
-
-
-
-
-
-
-
+sys.path.append("../../vae_from_scratch/video_vae")
+from loss.loss import LossFunction
+from dataset.video_dataset import VideoDataset
+from vae.causal_vae import CausalVAE
 
 
 
 if __name__ == "__main__":
-    args = get_args()
-    out = main(args=args)
+
+    ## Dataset 
+    data_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.CenterCrop(256),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    # Instantiate the Dataset
+    video_dataset = VideoDataset(video_dir='../../vae_from_scratch/Data/train_dataset', num_frames=16, transform=data_transform)
+    print(f"Dataset created with {len(video_dataset)} videos.")
+    data_loader = DataLoader(video_dataset, batch_size=1, shuffle=True, num_workers=2)
+
+   
 
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # x = torch.randn(2, 3, 8, 256, 256).to(device)
+    # target = torch.randn(2, 3, 8, 256, 256).to(device)
+    # target = rearrange(target, 'b c t h w -> (b t) c h w')
+
+    model = CausalVAE(num_groups=1).to(device)
+    optimizer = torch.optim.AdamW(params=model.parameters(), lr=0.0001)
+    scaler = torch.amp.GradScaler(device=device)
+    # loss_fn = torch.nn.MSELoss()
+    loss_fn = LossFunction().to(device)
+    # print(loss_fn)
+
+    torch.autograd.set_detect_anomaly(True)
+    
+    # print(optimizer)
+
+    for epoch in range(10):
+        optimizer.zero_grad()
+        
+        for batch in data_loader:
+            print(f"epoch --> {epoch}")
+            batch = rearrange(batch, 'b t c h w -> b c t h w').to(device)
+            batch = batch.contiguous()
+            print(f"train dataset shape: >>> {batch.shape}")
+
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                posterior, reconstruct = model(batch)
+                print(posterior, reconstruct.shape)
+
+                losses = loss_fn(batch, reconstruct, posterior, epoch, model.get_last_layer(), 0)
+                print(f"losses  -> {losses}")
+            
+
+              
+        
+
+        
