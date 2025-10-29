@@ -10,7 +10,8 @@ class CausalConv3d(nn.Module):
                  in_channels: int,
                  out_channel: int,
                  kernel_size: int = 3,
-                 stride=1):
+                 stride=1,
+                 padding=1):
         
         super().__init__()
 
@@ -18,7 +19,7 @@ class CausalConv3d(nn.Module):
                               out_channels=out_channel,
                               kernel_size=kernel_size,
                               stride=stride,
-                              padding=1,
+                              padding=padding,
                               )
         
 
