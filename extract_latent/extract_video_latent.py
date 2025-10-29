@@ -58,7 +58,7 @@ def build_data_loader(args):
 def main(args):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_model(args)
+    model = build_model(args).to(device)
 
     if args.model_dtype == "bf16":
         torch_dtype = torch.bfloat16
