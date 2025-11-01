@@ -1,58 +1,80 @@
 import torch 
-from torch import nn 
-import sys 
-from einops import rearrange
-from torchvision import transforms
-from torch.utils.data import DataLoader
 
+from args import get_args
+import sys 
 sys.path.append("../../vae_from_scratch/video_vae")
-from loss.loss import LossFunction
-from dataset.video_dataset import VideoDataset
-from vae.causal_vae import CausalVAE
+from vae.wrapper import CausalVideoLossWrapper
+from dataset.video_dataloader import Video_dataloader
+from middleware.optimizer import create_optimizer
+from middleware.native_scaler import NativeScalerWithGradNormCount
 from middleware.scheduler import cosine_scheduler
+from ddp import train_one_epoch
+
+def main(args):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = CausalVideoLossWrapper(num_groups=args.batch_size, args=args)
+    
+    num_training_steps_per_epoch = args.iters_per_epoch
+    train_video_dataloaders = Video_dataloader(args=args)
+    
+    model_without_ddp = model
+    n_learnable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total number of learnable parameters: {n_learnable_parameters / 1e6} Million")
+
+    print(f"LR: {args.lr:.8f}")
+    print(f"Min Lr: {args.min_lr:.8f}")
+    print(f"Weight Decay: {args.weight_decay:.8f}")
+    print(f"Batch size: {args.batch_size}")
+    print(f"Number of training steps {(num_training_steps_per_epoch * args.epochs)}")
+    print(f"Number of Training example per epoch {(args.batch_size * num_training_steps_per_epoch)}")
+
+    optimizer = create_optimizer(args=args,
+                                 model=model_without_ddp.vae)
+    optimizer_disc = create_optimizer(args=args,
+                                      model=model_without_ddp.loss.discriminator) if args.add_discriminator else None
+    
+    loss_scaler = NativeScalerWithGradNormCount(enable=True if args.model_dtype == "fp16" else False)
+    loss_scaler_disc = NativeScalerWithGradNormCount(enable=True if args.model_dtype == "fp16" else False) if args.add_discriminator else None 
+    # print(loss_scaler_disc)
+
+    lr_schedule_values = cosine_scheduler(base_value=args.lr,
+                                          final_value=args.min_lr,
+                                          epochs=args.epochs,
+                                          niter_per_ep=num_training_steps_per_epoch,
+                                          warmup_epochs=args.warmup_epoch,
+                                          warmup_steps=args.warmup_steps)
+    # print(len(lr_schedule_values))
+
+    lr_schedule_values_disc = cosine_scheduler(base_value=args.lr,
+                                          final_value=args.min_lr,
+                                          epochs=args.epochs,
+                                          niter_per_ep=num_training_steps_per_epoch,
+                                          warmup_epochs=args.warmup_epoch,
+                                          warmup_steps=args.warmup_steps) if args.add_discriminator else None
+    # print(lr_schedule_values_disc)
+
+    print(f"Start training for {args.epochs} the global iters is {args.global_step}")
+
+    for epoch in range(args.start_epoch, args.epochs):
+        train_one_epoch(args,
+            model=model,
+            optimizer=optimizer,
+            optimizer_disc=optimizer_disc,
+            epoch=epoch,
+            lr_schedule_values=lr_schedule_values,
+            lr_schedule_values_disc=lr_schedule_values_disc,
+            data_loader = train_video_dataloaders,
+            loss_scaler=loss_scaler,
+            loss_scaler_disc=loss_scaler_disc
+        )
+    
+    
+
+
+
 
 
 if __name__ == "__main__":
-
-    total_step = 100
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # Instantiate the Dataset
-    video_dataset = VideoDataset(video_dir='../../vae_from_scratch/Data/train_dataset')
-    print(f"Dataset created with {len(video_dataset)} videos.")
-    data_loader = DataLoader(video_dataset, batch_size=1, shuffle=True, num_workers=2)
-    
-    model = CausalVAE(num_groups=1).to(device)
-    optimizer = torch.optim.AdamW(params=model.parameters(), lr=0.0001)
-    loss_fn = LossFunction().to(device)
-
-    lr_schedule = cosine_scheduler(total_step=total_step,
-                                   warmup_step=10)
-    
-
-    for epoch in range(total_step):
-
-        new_lr = lr_schedule[epoch]
-
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = new_lr
-
-        optimizer.zero_grad()
-
-        
-        for batch in data_loader:
-            print(f"epoch --> {epoch}")
-            batch = batch.to(device)
-
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
-                posterior, reconstruct = model(batch)
-                print(posterior, reconstruct.shape)
-
-                losses = loss_fn(batch, reconstruct, posterior, epoch, model.get_last_layer(), 0)
-                print(f"losses  -> {losses}")
-            
-
-              
-        
-
-        
+    args = get_args()
+    main(args)
