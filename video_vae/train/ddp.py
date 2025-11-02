@@ -32,6 +32,8 @@ def train_one_epoch(args,
 
     if args.model_dtype == 'bf16':
         _dtype = torch.bfloat16
+    else:
+      _dtype = torch.float16
 
     
     print(f"Start training epoch {epoch} iters per inner epoch {args.iters_per_epoch}")
@@ -61,18 +63,40 @@ def train_one_epoch(args,
         if rec_loss is not None:
             loss_value = rec_loss.item()
 
-            optimizer.zero_grad()
-            grad_norm = loss_scaler(rec_loss, optimizer, parameters=model.vae.parameters())
+            with torch.autograd.set_detect_anomaly(True):
 
+                optimizer.zero_grad()
+                # is_second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
+                grad_norm = loss_scaler(rec_loss, optimizer, parameters=model.vae.parameters(), retain_graph=True)
+
+            # This loss_logger is used when datype is float16 or float32 not for the bfloat16
             if "scaler" in loss_scaler.state_dict():
-                print(f"Loss scaler value: >>>>>>> {loss_scaler.state_dict()}")
                 loss_scaler_value = loss_scaler.state_dict()["scaler"]
-                
-
-            
+            else:
+                loss_scaler_value = 1
 
             metric_logger.update(vae_loss=loss_value)
             metric_logger.update(loss_scaler=loss_scaler_value)
+
+        ############################################################################################
+
+        # # The update of gan loss 
+        if gan_loss is not None:
+          gan_loss_value = gan_loss.item()
+
+          with torch.autograd.set_detect_anomaly(True):
+            optimizer_disc.zero_grad()
+            disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), retain_graph=False)
+          
+
+        # print(f"gan_loss_value: >>>>>>>>>>>> {gan_loss_value}")
+        print(f"disc_grad_norm: >>>>>>>>> {disc_grad_norm}")
+
+        # metric_logger.update(disc_loss=gan_loss_value)
+        # metric_logger.update(disc_grad_norm=disc_grad_norm)
+
+        
+
 
 
 

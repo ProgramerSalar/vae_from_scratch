@@ -11,10 +11,11 @@ class NativeScalerWithGradNormCount:
                  loss,
                  optimizer,
                  parameters,
-                 create_graph=False,
+                 create_graph=False,   # optimizer second_order
+                 retain_graph=False,
                  update_grad=True,
                  layer_names=None):
-        self._scaler.scale(loss).backward(create_graph=create_graph)
+        self._scaler.scale(loss).backward(create_graph=create_graph, retain_graph=retain_graph)
         if update_grad:
             self._scaler.unscale_(optimizer)
             norm = get_grad_norm(parameters=parameters, layer_names=layer_names)
