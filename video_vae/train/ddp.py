@@ -87,13 +87,11 @@ def train_one_epoch(args,
           with torch.autograd.set_detect_anomaly(True):
             optimizer_disc.zero_grad()
             disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), retain_graph=False)
+
+            # print(f"Let's see the what is the parameters has: >>>>>>>> {model.loss.discriminator}")
           
 
-        # print(f"gan_loss_value: >>>>>>>>>>>> {gan_loss_value}")
-        print(f"disc_grad_norm: >>>>>>>>> {disc_grad_norm}")
-
-        # metric_logger.update(disc_loss=gan_loss_value)
-        # metric_logger.update(disc_grad_norm=disc_grad_norm)
+        
 
         
 

@@ -36,7 +36,7 @@ def main(args):
     optimizer_disc = create_optimizer(args=args,
                                       model=model_without_ddp.loss.discriminator) if args.add_discriminator else None
     
-    print(f"is_second_order: >>>>>>>>> {optimizer_disc.is_second_order}")
+    # print(f"is_second_order: >>>>>>>>> {optimizer_disc.is_second_order}")
     
     loss_scaler = NativeScalerWithGradNormCount(enable=True if args.model_dtype == "fp16" else False)
     loss_scaler_disc = NativeScalerWithGradNormCount(enable=True if args.model_dtype == "fp16" else False) if args.add_discriminator else None 

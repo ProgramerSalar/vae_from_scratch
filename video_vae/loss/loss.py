@@ -30,8 +30,8 @@ class LossFunction(nn.Module):
                  # <-- Discriminator --> ## 
                  disc_factor=1.0,
                  disc_start=0,
-                 disc_weight=0.5,
-                 using_3d_discriminator=False
+                 disc_weight=0.5
+                
                  ):
         
         super().__init__()
@@ -41,8 +41,6 @@ class LossFunction(nn.Module):
         self.disc_start = disc_start
         self.disc_weight = disc_weight
         self.kl_weight = kl_weight
-        self.discriminator_iter_start = disc_start
-        self.using_3d_discriminator = using_3d_discriminator
 
         """
             perceptual_weight: you can turn to fine-tune how much your model cares about making images that look right to a human eye.
@@ -54,9 +52,6 @@ class LossFunction(nn.Module):
         self.discriminator = NumberLayerDiscriminator(in_channels=disc_in_channels)
         self.lpips = Lpips().eval()
         self.logvar = nn.Parameter(data=torch.ones(()) * logvar_init)
-
-    
-        
 
  
     def forward(self, 
@@ -96,7 +91,7 @@ class LossFunction(nn.Module):
             disc_factor = adopt_weight(
                 weight=self.disc_factor,
                 global_step=global_step,
-                threshold=self.discriminator_iter_start
+                threshold=0
             )
 
             if disc_factor > 0.0:
@@ -110,7 +105,7 @@ class LossFunction(nn.Module):
                                                 )[0]
             
                 g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
-                d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
+                d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-6)
                 d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
                 d_weight = d_weight * self.disc_weight
 

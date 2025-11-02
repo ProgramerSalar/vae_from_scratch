@@ -23,7 +23,7 @@ class NumberLayerDiscriminator(nn.Module):
                       stride=2,
                       padding=1
                       ),
-            nn.LeakyReLU(0.2, inplace=True)
+            nn.LeakyReLU(0.2, inplace=False)
         ]
 
         self.num_layers = 4
@@ -45,7 +45,7 @@ class NumberLayerDiscriminator(nn.Module):
                           padding=1,
                           ),
                 nn.InstanceNorm2d(num_features=out_channels),
-                nn.LeakyReLU(0.2, inplace=True)
+                nn.LeakyReLU(0.2, inplace=False)
             )
         sequence += [
             nn.Conv2d(in_channels=512,
@@ -54,7 +54,7 @@ class NumberLayerDiscriminator(nn.Module):
                       stride=1,
                       padding=1),
             nn.InstanceNorm2d(num_features=512),
-            nn.LeakyReLU(0.2, inplace=True)
+            nn.LeakyReLU(0.2, inplace=False)
         ]
 
         sequence += [

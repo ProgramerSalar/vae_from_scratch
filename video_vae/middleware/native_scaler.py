@@ -43,6 +43,7 @@ def get_grad_norm(parameters,
 
     if isinstance(parameters, torch.Tensor):
         parameters = [parameters]
+        print(f"[native_scaler] Really paramaters is Tensor: >>>>>>>>>>>>>>>>> {parameters}")
 
     parameters = [p for p in parameters if p.grad is not None]
     norm_type = float(norm_type)
