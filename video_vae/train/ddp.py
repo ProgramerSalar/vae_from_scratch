@@ -87,6 +87,8 @@ def train_one_epoch(args,
           with torch.autograd.set_detect_anomaly(True):
             optimizer_disc.zero_grad()
             disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), retain_graph=False)
+            print(f"<----------Testing line [11]----------->")
+            print(f"disc_grad_norm: {disc_grad_norm}")
 
             # print(f"Let's see the what is the parameters has: >>>>>>>> {model.loss.discriminator}")
           

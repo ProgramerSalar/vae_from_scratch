@@ -44,16 +44,16 @@ class CausalVideoLossWrapper(nn.Module):
         posterior, reconstruct = self.vae(x)
 
         # the reconstruct loss 
-        rec_log, reconstruct_loss = self.loss(x,
+        reconstruct_loss, rec_log = self.loss(x,
                                               reconstruct,
                                               posterior,
-                                              step,
+                                              global_step=step,
                                               last_layer=self.vae.get_last_layer(),
                                               optimizer_idx=0)       
-        gan_log, gan_loss = self.loss(x,
+        gan_loss, gan_log = self.loss(x,
                                     reconstruct,
                                     posterior,
-                                    step,
+                                    global_step=step,
                                     last_layer=self.vae.get_last_layer(),
                                     optimizer_idx=1)    
 
