@@ -60,7 +60,8 @@ class LossFunction(nn.Module):
                 posteriors, 
                 global_step, 
                 last_layer,
-                optimizer_idx):
+                optimizer_idx,
+                split="train"):
 
         input = rearrange(input, 'b c t h w -> (b t) c h w').contiguous()
         target = rearrange(reconstruct, 'b c t h w -> (b t) c h w').contiguous()
@@ -116,12 +117,15 @@ class LossFunction(nn.Module):
             )
 
             log = {
-                f"total_loss: {loss.mean()},",
-                f"kl_loss: {kl_loss.mean()}",
-                f"nll_loss: {nll_loss.mean()}",
-                f"rec_loss: {rec_loss.mean()}",
-                f"perceptual_loss: {perceputual_loss.mean()}",
-                f"g_loss: {g_loss.mean()}"
+                "{}/total_loss".format(split): loss.clone().detach().mean(),
+                "{}/logvar".format(split): self.logvar.detach(),
+                "{}/kl_loss".format(split): kl_loss.detach().mean(),
+                "{}/nll_loss".format(split): nll_loss.detach().mean(),
+                "{}/rec_loss".format(split): rec_loss.detach().mean(),
+                "{}/perception_loss".format(split): perceputual_loss.detach().mean(),
+                "{}/d_weight".format(split): d_weight.detach(),
+                "{}/disc_factor".format(split): torch.tensor(disc_factor),
+                "{}/g_loss".format(split): g_loss.detach().mean(),
             }
             
             return log, loss
@@ -140,9 +144,9 @@ class LossFunction(nn.Module):
                                      logits_fake=fake_logits)
             
             log = {
-                f"disc_loss: {d_loss.mean()}",
-                f"logits_real: {real_logits.mean()}",
-                f"logits_fake: {fake_logits.mean()}"
+                "{}/disc_loss".format(split): d_loss.clone().detach().mean(),
+                "{}/logits_real".format(split): real_logits.detach().mean(),
+                "{}/logits_fake".format(split): fake_logits.detach().mean(),
             }
             
             

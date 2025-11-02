@@ -65,7 +65,11 @@ def train_one_epoch(args,
             grad_norm = loss_scaler(rec_loss, optimizer, parameters=model.vae.parameters())
 
             if "scaler" in loss_scaler.state_dict():
+                print(f"Loss scaler value: >>>>>>> {loss_scaler.state_dict()}")
                 loss_scaler_value = loss_scaler.state_dict()["scaler"]
+                
+
+            
 
             metric_logger.update(vae_loss=loss_value)
             metric_logger.update(loss_scaler=loss_scaler_value)
