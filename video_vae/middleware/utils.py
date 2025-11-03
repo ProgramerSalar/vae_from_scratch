@@ -12,8 +12,8 @@ class SmoothedValue(object):
         if fmt is None:
             fmt = "{median:.4f} ({global_avg:.4f})"
         self.deque = deque(maxlen=window_size)
-        self.total = 1
-        self.count = 1
+        self.total = 0.0
+        self.count = 0
         self.fmt = fmt
 
     def update(self, value, n=1):
@@ -35,14 +35,20 @@ class SmoothedValue(object):
 
     @property
     def global_avg(self):
+        if self.count == 0:
+          return 0.0
         return self.total / self.count
 
     @property
     def max(self):
+        if not self.deque:
+          return 0
         return max(self.deque)
 
     @property
     def value(self):
+        if not self.deque:
+          return 0.0
         return self.deque[-1]
 
     def __str__(self):

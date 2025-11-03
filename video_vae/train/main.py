@@ -12,8 +12,18 @@ from ddp import train_one_epoch
 
 def main(args):
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = CausalVideoLossWrapper(num_groups=args.batch_size, args=args)
+    device = torch.device("cuda:0")
+    model = CausalVideoLossWrapper(num_groups=args.batch_size, args=args).to(device)
+    # Get the device of the first parameter of the model
+    model_device = next(model.parameters()).device
+
+    print(f"The model is currently on device: {model_device}")
+
+    # You can also check specifically if it is on a CUDA device
+    if model_device.type == 'cuda':
+        print("The model is on a CUDA (GPU) device.")
+    elif model_device.type == 'cpu':
+        print("The model is on a CPU device.")
     
     num_training_steps_per_epoch = args.iters_per_epoch
     train_video_dataloaders = Video_dataloader(args=args)
@@ -59,6 +69,7 @@ def main(args):
     # print(lr_schedule_values_disc)
 
     print(f"Start training for {args.epochs} the global iters is {args.global_step}")
+    log_writer = None
 
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(args,
@@ -70,7 +81,8 @@ def main(args):
             lr_schedule_values_disc=lr_schedule_values_disc,
             data_loader = train_video_dataloaders,
             loss_scaler=loss_scaler,
-            loss_scaler_disc=loss_scaler_disc
+            loss_scaler_disc=loss_scaler_disc,
+            log_writer=log_writer
         )
     
     
