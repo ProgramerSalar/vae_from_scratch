@@ -68,12 +68,12 @@ def train_one_epoch(
                 if lr_schedule_values_disc is not None:
                     param_group["lr"] = lr_schedule_values_disc[it] * param_group.get("lr_scale", 1.0)
 
-        samples = next(data_loader)
+        samples = next(iter(data_loader))
     
-        samples['video'] = samples['video'].to(device, non_blocking=True)
+        samples = samples.to(device)
 
         with torch.cuda.amp.autocast(enabled=True, dtype=_dtype):
-            rec_loss, gan_loss, log_loss = model(samples['video'], args.global_step, identifier=samples['identifier'])
+            rec_loss, gan_loss, log_loss = model(samples, args.global_step)
 
         ###################################################################################################
         # The update of rec_loss

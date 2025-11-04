@@ -2,11 +2,10 @@ import torch
 import argparse
 import numpy as np
 import random
-import torch.backends.cudnn as cudnn
 import time 
 import os, json, datetime
 from pathlib import Path
-
+from torch.utils.data import DataLoader
 
 import sys
 
@@ -18,8 +17,7 @@ sys.path.append(str(project_root))
 # -----------------------------------
 
 from video_vae.causal_video_vae_wrapper import CausalVideoVAELossWrapper
-from dataset.dataset_cls import VideoDataset, ImageDataset
-from dataset.dataloaders import create_mixed_dataloaders
+from dataset.dataset_cls import VideoDataset
 from trainer_misc.utils import (
     init_distributed_mode,
     create_optimizer,
@@ -31,13 +29,7 @@ from trainer_misc.utils import (
 )
 from trainer_misc.vae_ddp_trainer import train_one_epoch
 
-from utils import (
-    initialize_context_parallel,
-    get_rank,
-    get_world_size,
-    
-    
-)
+
 
 
 
@@ -154,7 +146,6 @@ def build_model(args):
     print(f"Load the base videoVAE checkpoint from path: {model_path} using dtype: {model_dtype}")
 
     model = CausalVideoVAELossWrapper(
-        model_path=model_path,
         model_dtype='fp32',
         disc_start=args.disc_start,
         logvar_init=args.logvar_init,
@@ -179,55 +170,38 @@ def build_model(args):
 
 
 def main(args):
-    init_distributed_mode(args)
+    
 
-    # If enabled, distribute multiple video clips to different devices
-    if args.use_context_parallel:
-        initialize_context_parallel(args.context_size)
+    
 
     print(args)
 
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
-    seed = args.seed + get_rank()
+    seed = args.seed
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
-    cudnn.benchmark = True
+    
 
     model = build_model(args)
     
-    world_size = get_world_size()
-    # global_rank = get_rank()
-    global_rank = 0
+    
 
     num_training_steps_per_epoch = args.iters_per_epoch
     log_writer = None
 
-    # building dataset and dataloaders
-    image_gpus = max(1, int(world_size * args.image_mix_ratio))
-    if args.use_image_video_mixed_training:
-        video_gpus = world_size - image_gpus
-    else:
-        # only use video data
-        video_gpus = world_size
-        image_gpus = 0
+    video_path = "/content/vae_from_scratch/Data"
+    training_dataset = VideoDataset(video_path)
+    data_loader_train = DataLoader(dataset=training_dataset,
+                                        batch_size=1)
+    
+
 
     
-    training_dataset = VideoDataset(args.video_anno, resolution=args.resolution, 
-        max_frames=args.max_frames, add_normalize=not args.not_add_normalize)
-    
-    
-   
-        
-    print(f"what is the global rank i am getting: {global_rank}")
-
-    
-    
-    torch.distributed.barrier()
-
+  
     model.to(device)
     model_without_ddp = model
 
@@ -239,7 +213,7 @@ def main(args):
     print(f'total number of learnable params: {n_learnable_parameters / 1e6} M')
     print(f'total number of fixed params in : {n_fix_parameters / 1e6} M')
 
-    total_batch_size = args.batch_size * get_world_size()
+    total_batch_size = args.batch_size
     print("LR = %.8f" % args.lr)
     print("Min LR = %.8f" % args.min_lr)
     print("Weigth Decay = %.8f" % args.weight_decay)
@@ -253,9 +227,10 @@ def main(args):
     loss_scaler = NativeScalerWithGradNormCount(enabled=True if args.model_dtype == "fp16" else False)
     loss_scaler_disc = NativeScalerWithGradNormCount(enabled=True if args.model_dtype == "fp16" else False) if args.add_discriminator else None
 
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=False)
-        model_without_ddp = model.module
+    
+        
+    model_without_ddp = model
+    
 
     print("Use step level LR & WD scheduler!")
 
@@ -276,7 +251,7 @@ def main(args):
     
     print(f"Start training for {args.epochs} epochs, the global iterations is {args.global_step}")
     start_time = time.time()
-    torch.distributed.barrier()
+  
             
     for epoch in range(args.start_epoch, args.epochs):
         

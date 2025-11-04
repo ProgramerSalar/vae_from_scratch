@@ -20,7 +20,7 @@ class CausalVideoVAELossWrapper(nn.Module):
     """
         The causal video vae training and inference running wrapper
     """
-    def __init__(self, model_path, model_dtype='fp32', disc_start=0, logvar_init=0.0, kl_weight=1.0, 
+    def __init__(self, model_dtype='fp32', disc_start=0, logvar_init=0.0, kl_weight=1.0, 
         pixelloss_weight=1.0, perceptual_weight=1.0, disc_weight=0.5, interpolate=True, 
         add_discriminator=True, freeze_encoder=False, load_loss_module=False, lpips_ckpt=None, **kwargs,
     ):
@@ -33,11 +33,11 @@ class CausalVideoVAELossWrapper(nn.Module):
         else:
             torch_dtype = torch.float32
 
-        print(f"what is the model_path: {model_path}")
+        
 
 
         # so the weight path of vae 
-        self.vae = CausalVideoVAE.from_pretrained(model_path, torch_dtype=torch_dtype, interpolate=False)
+        self.vae = CausalVideoVAE(interpolate=False)
         print(f"what is the output to get vae: {self.vae}")
         self.vae_scale_factor = self.vae.config.scaling_factor
 
@@ -61,30 +61,7 @@ class CausalVideoVAELossWrapper(nn.Module):
 
         self.disc_start = disc_start
 
-    def load_checkpoint(self, checkpoint_path, **kwargs):
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        if 'model' in checkpoint:
-            checkpoint = checkpoint['model']
-
-        vae_checkpoint = OrderedDict()
-        disc_checkpoint = OrderedDict()
-
-        for key in checkpoint.keys():
-            if key.startswith('vae.'):
-                new_key = key.split('.')
-                new_key = '.'.join(new_key[1:])
-                vae_checkpoint[new_key] = checkpoint[key]
-            if key.startswith('loss.discriminator'):
-                new_key = key.split('.')
-                new_key = '.'.join(new_key[2:])
-                disc_checkpoint[new_key] = checkpoint[key]
-
-        vae_ckpt_load_result = self.vae.load_state_dict(vae_checkpoint, strict=False)
-        print(f"Load vae checkpoint from {checkpoint_path}, load result: {vae_ckpt_load_result}")
-
-        if self.add_discriminator:
-            disc_ckpt_load_result = self.loss.discriminator.load_state_dict(disc_checkpoint, strict=False)
-            print(f"Load disc checkpoint from {checkpoint_path}, load result: {disc_ckpt_load_result}")
+    
 
     def forward(self, x, step, identifier=['video']):
         xdim = x.ndim
