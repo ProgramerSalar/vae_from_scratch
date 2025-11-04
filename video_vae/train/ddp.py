@@ -1,4 +1,4 @@
-import torch, math 
+import torch, math, sys
 
 from vae.causal_vae import CausalVAE
 from middleware.utils import MetricLogger, SmoothedValue
@@ -103,80 +103,81 @@ def train_one_epoch(args,
           with torch.autograd.set_detect_anomaly(True):
             optimizer_disc.zero_grad()
             is_second_order = hasattr(optimizer_disc, 'is_second_order') and optimizer_disc.is_second_order
-            disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), create_graph=is_second_order)
+            print(f">>>>>>>>>>>>>>> is_second_order: {is_second_order}")
+            disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), create_graph=True)
           print(f"Let's check the disc_grad_norm: >>>>>>> {disc_grad_norm}")
             
-          if "scaler" in loss_scaler_disc.state_dict():
-            disc_loss_scaler_value = loss_scaler_disc.state_dict()["scale"]
-          else:
-            disc_loss_scaler_value = 1 
+    #       if "scaler" in loss_scaler_disc.state_dict():
+    #         disc_loss_scaler_value = loss_scaler_disc.state_dict()["scale"]
+    #       else:
+    #         disc_loss_scaler_value = 1 
 
-          print(f"disc_loss_scaler_value: >>>>>>>> {disc_loss_scaler_value}")
+    #       print(f"disc_loss_scaler_value: >>>>>>>> {disc_loss_scaler_value}")
 
-          metric_logger.update(disc_loss=gan_loss_value)
-          metric_logger.update(disc_loss_scale=disc_loss_scaler_value) # 1
-          metric_logger.update(disc_grad_norm=disc_grad_norm) # 0.0
+    #       metric_logger.update(disc_loss=gan_loss_value)
+    #       metric_logger.update(disc_loss_scale=disc_loss_scaler_value) # 1
+    #       metric_logger.update(disc_grad_norm=disc_grad_norm) # 0.0
 
-          min_lr = 10.
-          max_lr = 0.
-          for group in optimizer_disc.param_groups:
-            min_lr = min(min_lr, group["lr"])
-            min_lr = max(max_lr, group["lr"])
+    #       min_lr = 10.
+    #       max_lr = 0.
+    #       for group in optimizer_disc.param_groups:
+    #         min_lr = min(min_lr, group["lr"])
+    #         min_lr = max(max_lr, group["lr"])
 
-          metric_logger.update(lr=max_lr)
-          metric_logger.update(min_lr=min_lr)
-          weight_decay_value = None 
+    #       metric_logger.update(lr=max_lr)
+    #       metric_logger.update(min_lr=min_lr)
+    #       weight_decay_value = None 
 
-          for group in optimizer.param_groups:
-            if group["weight_decay"] > 0:
-              weight_decay_value = group["weight_decay"]
+    #       for group in optimizer.param_groups:
+    #         if group["weight_decay"] > 0:
+    #           weight_decay_value = group["weight_decay"]
 
-          metric_logger.update(weight_decay=weight_decay_value)
-          metric_logger.update(grad_norm=grad_norm)
+    #       metric_logger.update(weight_decay=weight_decay_value)
+    #       metric_logger.update(grad_norm=grad_norm)
 
-        torch.cuda.synchronize()
-        new_log_loss = {
-          k.split('/')[-1]: v
-          for k, v in log_loss.items()
-          if k not in ['total_loss']
-        }
-        metric_logger.update(**new_log_loss)
+    #     torch.cuda.synchronize()
+    #     new_log_loss = {
+    #       k.split('/')[-1]: v
+    #       for k, v in log_loss.items()
+    #       if k not in ['total_loss']
+    #     }
+    #     metric_logger.update(**new_log_loss)
 
-        if rec_loss is not None:
-          min_lr = 10.
-          max_lr = 0.
-          for group in optimizer.param_groups:
-            min_lr = min(min_lr, group["lr"])
-            max_lr = max(max_lr, group["lr"])
+    #     if rec_loss is not None:
+    #       min_lr = 10.
+    #       max_lr = 0.
+    #       for group in optimizer.param_groups:
+    #         min_lr = min(min_lr, group["lr"])
+    #         max_lr = max(max_lr, group["lr"])
 
-          metric_logger.update(lr=max_lr)
-          metric_logger.update(min_lr=min_lr)
+    #       metric_logger.update(lr=max_lr)
+    #       metric_logger.update(min_lr=min_lr)
 
-          weight_decay_value = None
-          for param in optimizer.param_groups:
-            if group["weight_decay"] > 0:
-              weight_decay_value = group["weight_decay"]
+    #       weight_decay_value = None
+    #       for param in optimizer.param_groups:
+    #         if group["weight_decay"] > 0:
+    #           weight_decay_value = group["weight_decay"]
 
-          metric_logger.update(weight_decay=weight_decay_value)
-          metric_logger.update(grad_norm=grad_norm)
+    #       metric_logger.update(weight_decay=weight_decay_value)
+    #       metric_logger.update(grad_norm=grad_norm)
 
-        if log_writer is not None:
-          log_writer.update(**new_log_loss, head="train/loss")
-          log_writer.update(lr=max_lr, head="opt")
-          log_writer.update(min_lr=min_lr, head="opt")
-          log_writer.update(weight_decay=weight_decay_value, head="opt")
-          log_writer.update(grad_norm-grad_norm, head="opt")
+    #     if log_writer is not None:
+    #       log_writer.update(**new_log_loss, head="train/loss")
+    #       log_writer.update(lr=max_lr, head="opt")
+    #       log_writer.update(min_lr=min_lr, head="opt")
+    #       log_writer.update(weight_decay=weight_decay_value, head="opt")
+    #       log_writer.update(grad_norm-grad_norm, head="opt")
 
-          log_writer.set_step()
+    #       log_writer.set_step()
 
-        args.global_step = args.global_step + 1 
+    #     args.global_step = args.global_step + 1 
 
     
-    print(f"Metric Logger: >>>>>>>>>>>>>>>>>>> : {metric_logger}")
-    return {
-      k: meter.global_avg
-      for k, meter in metric_logger.meters.items()
-    }
+    # print(f"Metric Logger: >>>>>>>>>>>>>>>>>>> : {metric_logger}")
+    # return {
+    #   k: meter.global_avg
+    #   for k, meter in metric_logger.meters.items()
+    # }
     
 
       
