@@ -62,6 +62,20 @@ def train_one_epoch(args,
 
         sample = next(iter(data_loader))
         sample = sample.half().to("cuda:0")
+    
+        def check_for_nan(tensor, name):
+          if torch.isnan(tensor).any():
+            print(f"NaN detected in {name}")
+          if torch.isinf(tensor).any():
+            print(f"Inf detected in {name}")
+          else:
+            print(f"wow Tensor don't have NaN and Inf value")
+
+        check_tensor = check_for_nan(tensor=sample, name="train_data")
+        print(check_tensor)
+
+
+
         with torch.amp.autocast(device_type="cuda", enabled=True, dtype=_dtype):
             rec_loss, gan_loss, log_loss = model(sample, args.global_step)
 
@@ -103,9 +117,14 @@ def train_one_epoch(args,
           with torch.autograd.set_detect_anomaly(True):
             optimizer_disc.zero_grad()
             is_second_order = hasattr(optimizer_disc, 'is_second_order') and optimizer_disc.is_second_order
-            print(f">>>>>>>>>>>>>>> is_second_order: {is_second_order}")
-            disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), create_graph=True)
-          print(f"Let's check the disc_grad_norm: >>>>>>> {disc_grad_norm}")
+            check_parameters = [param for param in model.loss.discriminator.parameters()]
+            print(f"  ..........................what does discriminator parameters: {check_parameters}")
+            check_tensor = check_for_nan(tensor=check_parameters[0], name="disc_param_data")
+            print(check_tensor)
+            # for name, param in model.loss.discriminator.parameters():
+            #   print(weight), print(f"bias >>>>>>>>>>>>>>>> {bias}")
+            # disc_grad_norm = loss_scaler_disc(gan_loss, optimizer_disc, parameters=model.loss.discriminator.parameters(), create_graph=True)
+          
             
     #       if "scaler" in loss_scaler_disc.state_dict():
     #         disc_loss_scaler_value = loss_scaler_disc.state_dict()["scale"]
