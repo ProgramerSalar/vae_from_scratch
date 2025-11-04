@@ -215,25 +215,16 @@ def main(args):
         video_gpus = world_size
         image_gpus = 0
 
-    if global_rank < video_gpus:
-        training_dataset = VideoDataset(args.video_anno, resolution=args.resolution, 
-            max_frames=args.max_frames, add_normalize=not args.not_add_normalize)
-    else:
-        training_dataset = ImageDataset(args.image_anno, resolution=args.resolution, 
-            max_frames=args.max_frames // 4, add_normalize=not args.not_add_normalize)
+    
+    training_dataset = VideoDataset(args.video_anno, resolution=args.resolution, 
+        max_frames=args.max_frames, add_normalize=not args.not_add_normalize)
+    
+    
+   
         
     print(f"what is the global rank i am getting: {global_rank}")
 
-    data_loader_train = create_mixed_dataloaders(
-        training_dataset,
-        batch_size=args.batch_size, 
-        num_workers=args.num_workers,
-        epoch=args.seed,
-        world_size=world_size,
-        rank=global_rank,
-        image_mix_ratio=args.image_mix_ratio,
-        use_image_video_mixed_training=args.use_image_video_mixed_training,
-    )
+    
     
     torch.distributed.barrier()
 

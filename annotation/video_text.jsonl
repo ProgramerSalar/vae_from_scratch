@@ -1,1 +1,1 @@
-{"video": "webvid10m/train/010451_010500/23388121.mp4", "text": "the serene beauty of a valley with a river, mountains, and clouds", "latent": "webvid10m/train/010451_010500/23388121-latent-384-2.pt", "text_fea": "text_feature/webvid10m/train/010451_010500/23388121-text.pt"}
+{"video":"../vae_from_scratch/Data/webvid101/stock-footage-western-clownfish-swimming-around.mp4", "text": "Western clownfish swimming around", "latent": "", "text_fea":""}
