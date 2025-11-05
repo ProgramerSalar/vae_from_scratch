@@ -13,25 +13,19 @@ class NativeScalerWithGradNormCount:
         self._scaler = torch.amp.GradScaler(device="cuda", enabled=enable)
 
     def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True, layer_names=None):
-        if torch.isnan(loss).any() or torch.isinf(loss).any():
-          print("NaN/Inf detected in loss, skipping backward.")
-          optimizer.zero_grad()
-          
-        print(f"what is the loss: {loss}")
-        scale_loss=self._scaler.scale(loss)
-        print(f"loss_scale tensor: {scale_loss}")
-        scale_backward = scale_loss.backward()
-        print(f"scale_backward : {scale_backward}")
-          # if update_grad:
-          #   self._scaler.unscale_(optimizer)
-          #   # torch.nn.utils.clip_grad_norm_(parameters, 1.0)
-          #   norm = get_grad_norm(parameters=parameters, layer_names=layer_names)
+        self._scaler.scale(loss).backward(create_graph=create_graph)
 
-        #     self._scaler.step(optimizer)
-        #     self._scaler.update()
-            
-        
-        # return norm
+
+        if update_grad:
+          self._scaler.unscale_(optimizer)
+          # torch.nn.utils.clip_grad_norm_(parameters, 1.0)
+          norm = get_grad_norm(parameters=parameters, layer_names=layer_names)
+
+          self._scaler.step(optimizer)
+          self._scaler.update()
+          
+      
+        return norm
 
     def state_dict(self):
         return self._scaler.state_dict()
