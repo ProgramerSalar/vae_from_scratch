@@ -6,12 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 from einops import rearrange
 
-from .utils.utils import trunc_normal_
-from utils import (
-    get_context_parallel_rank, 
-    is_context_parallel_intialized
-    )
-from .context_parallel_ops import cp_pass_from_previous_rank
+
+from timm.models.layers import trunc_normal_
 
 
 def cast_tuple(t, length=1):
@@ -62,9 +58,7 @@ class CausalConv3d(nn.Module):
         self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride=stride, padding=0, dilation=dilation, **kwargs)
         self.cache_front_feat = deque()
 
-    def _clear_context_parallel_cache(self):
-        del self.cache_front_feat
-        self.cache_front_feat = deque()
+    
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
@@ -75,63 +69,12 @@ class CausalConv3d(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def context_parallel_forward(self, x):
-        cp_rank = get_context_parallel_rank()
-        if self.time_kernel_size == 3 and ((cp_rank == 0 and x.shape[2] <= 2) or (cp_rank != 0 and x.shape[2] <= 1)):
-            # This code is only for training 8 frames per GPU (except for cp_rank=0, 9 frames) with context parallel
-            # If you do not have enough GPU memory, you can set the total frames = 8 * CONTEXT_SIZE + 1, enable each GPU
-            # only forward 8 frames during training
-            x = cp_pass_from_previous_rank(x, dim=2, kernel_size=2)   # pass one latent
-            trans_x = cp_pass_from_previous_rank(x[:, :, :-1], dim=2, kernel_size=2)   # pass one latent
-            x = torch.cat([trans_x, x[:, :,-1:]], dim=2)
-        else:
-            x = cp_pass_from_previous_rank(x, dim=2, kernel_size=self.time_kernel_size)
-        
-        x = F.pad(x, self.time_uncausal_padding, mode='constant')
-
-        if cp_rank != 0:
-            if self.temporal_stride == 2 and self.time_kernel_size == 3:
-                x = x[:,:,1:]
+    
 
         x = self.conv(x)
         return x
 
     def forward(self, x, is_init_image=True, temporal_chunk=False):
-        # temporal_chunk: whether to use the temporal chunk
-
-        
-
-        if is_context_parallel_intialized():
-            return self.context_parallel_forward(x)
-        
-        pad_mode = self.pad_mode if self.time_pad < x.shape[2] else 'constant'
-
-        if not temporal_chunk:
-            x = F.pad(x, self.time_causal_padding, mode=pad_mode)
-            
-        else:
-            # print(f"what is the self.training: {self.training}")
-            assert not self.training, "The feature cache should not be used in training"
-            if is_init_image:
-                # Encode the first chunk
-                x = F.pad(x, self.time_causal_padding, mode=pad_mode)
-                self._clear_context_parallel_cache()
-                self.cache_front_feat.append(x[:, :, -2:].clone().detach())
-            else:
-                x = F.pad(x, self.time_uncausal_padding, mode=pad_mode)
-                video_front_context = self.cache_front_feat.pop()
-                self._clear_context_parallel_cache()
-
-                if self.temporal_stride == 1 and self.time_kernel_size == 3:
-                    x = torch.cat([video_front_context, x], dim=2)
-                elif self.temporal_stride == 2 and self.time_kernel_size == 3:
-                    x = torch.cat([video_front_context[:,:,-1:], x], dim=2)
-
-                self.cache_front_feat.append(x[:, :, -2:].clone().detach())
-
-        # print(f"what is the input shape {x.shape} and what is the dtype: {x.dtype} \n \
-        #       what is the weight-dtype of conv: {self.conv.weight.dtype} and bias-dtype: {self.conv.bias.dtype} \n \
-        #         Let's understand the conv archeticture : {self.conv}")
         
         x = self.conv(x)
         return x
@@ -146,8 +89,10 @@ class CausalGroupNorm(nn.GroupNorm):
         t = x.shape[2]
         x = rearrange(tensor=x, 
                       pattern='b c t h w -> (b t) c h w')
+        x = x.contiguous()
     
         x = super().forward(x)
+        x = x.contiguous()
         x = rearrange(tensor=x, 
                       pattern='(b t) c h w -> b c t h w', 
                       t=t)

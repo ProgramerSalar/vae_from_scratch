@@ -72,7 +72,7 @@ def train_one_epoch(
     
         samples = samples.to(device)
 
-        with torch.cuda.amp.autocast(enabled=True, dtype=_dtype):
+        with torch.amp.autocast(device_type="cuda", enabled=True, dtype=_dtype):
             rec_loss, gan_loss, log_loss = model(samples, args.global_step)
 
         ###################################################################################################
@@ -165,7 +165,6 @@ def train_one_epoch(
         args.global_step = args.global_step + 1
 
     # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
     
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}

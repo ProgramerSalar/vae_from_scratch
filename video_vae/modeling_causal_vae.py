@@ -22,18 +22,6 @@ from .modeling_enc_dec import (
 )
 from .modeling_causal_conv import CausalConv3d
 
-from utils import (
-    is_context_parallel_intialized,
-    get_context_parallel_group,
-    get_context_parallel_world_size,
-    get_context_parallel_rank,
-    get_context_parallel_group_rank,
-)
-
-from .context_parallel_ops import (
-    # conv_scatter_to_context_parallel_region,
-    conv_gather_from_context_parallel_region,
-)
 
 
 class CausalVideoVAE(ModelMixin, ConfigMixin):
@@ -176,21 +164,21 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    # def _set_gradient_checkpointing(self, module, value=False, enable=False, gradient_checkpointing_func=None):
-    #     if isinstance(module, (Encoder, Decoder)):
-    #         module.gradient_checkpointing = enable
+    def _set_gradient_checkpointing(self, module, value=False, enable=False, gradient_checkpointing_func=None):
+        if isinstance(module, (self.encoder, self.decoder)):
+            module.gradient_checkpointing = enable
 
-    def _set_gradient_checkpointing(self, enable=True, gradient_checkpointing_func=None):
-        if enable:
-            def _apply_gradient_checkpointing(module):
-                if isinstance(module, (CausalVaeEncoder, CausalVaeDecoder)):
-                    module.gradient_checkpointing = True
-            self.apply(_apply_gradient_checkpointing)
-        else:
-            def _apply_gradient_checkpointing(module):
-                if isinstance(module, (Encoder, Decoder)):
-                    module.gradient_checkpointing = False
-            self.apply(_apply_gradient_checkpointing)
+    # def _set_gradient_checkpointing(self, enable=True, gradient_checkpointing_func=None):
+    #     if enable:
+    #         def _apply_gradient_checkpointing(module):
+    #             if isinstance(module, (CausalVaeEncoder, CausalVaeDecoder)):
+    #                 module.gradient_checkpointing = True
+    #         self.apply(_apply_gradient_checkpointing)
+    #     else:
+    #         def _apply_gradient_checkpointing(module):
+    #             if isinstance(module, (Encoder, Decoder)):
+    #                 module.gradient_checkpointing = False
+    #         self.apply(_apply_gradient_checkpointing)
 
     def enable_tiling(self, use_tiling: bool = True):
         r"""
@@ -552,53 +540,53 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         x = sample
         # print(f"Let's testing this forward are worked or not: {x.shape}")
 
-        if is_context_parallel_intialized():
-            assert self.training, "Only supports during training now"
+        # if is_context_parallel_intialized():
+        #     assert self.training, "Only supports during training now"
 
-            if freeze_encoder:
-                with torch.no_grad():
-                    h = self.encoder(x, is_init_image=True, temporal_chunk=False)
-                    moments = self.quant_conv(h, is_init_image=True, temporal_chunk=False)
-                    posterior = DiagonalGaussianDistribution(moments)
-                    global_posterior = posterior
-            else:
-                h = self.encoder(x, is_init_image=True, temporal_chunk=False)
-                moments = self.quant_conv(h, is_init_image=True, temporal_chunk=False)
-                posterior = DiagonalGaussianDistribution(moments)
-                global_moments = conv_gather_from_context_parallel_region(moments, dim=2, kernel_size=1)
-                global_posterior = DiagonalGaussianDistribution(global_moments)
+        #     if freeze_encoder:
+        #         with torch.no_grad():
+        #             h = self.encoder(x, is_init_image=True, temporal_chunk=False)
+        #             moments = self.quant_conv(h, is_init_image=True, temporal_chunk=False)
+        #             posterior = DiagonalGaussianDistribution(moments)
+        #             global_posterior = posterior
+        #     else:
+        #         h = self.encoder(x, is_init_image=True, temporal_chunk=False)
+        #         moments = self.quant_conv(h, is_init_image=True, temporal_chunk=False)
+        #         posterior = DiagonalGaussianDistribution(moments)
+        #         global_moments = conv_gather_from_context_parallel_region(moments, dim=2, kernel_size=1)
+        #         global_posterior = DiagonalGaussianDistribution(global_moments)
             
-            if sample_posterior:
-                z = posterior.sample(generator=generator)
-            else:
-                z = posterior.mode()
+        #     if sample_posterior:
+        #         z = posterior.sample(generator=generator)
+        #     else:
+        #         z = posterior.mode()
 
-            if get_context_parallel_rank() == 0:
-                dec = self.decode(z, is_init_image=True).sample
-            else:
-                # Do not drop the first upsampled frame
-                dec = self.decode(z, is_init_image=False).sample
+        #     if get_context_parallel_rank() == 0:
+        #         dec = self.decode(z, is_init_image=True).sample
+        #     else:
+        #         # Do not drop the first upsampled frame
+        #         dec = self.decode(z, is_init_image=False).sample
 
-            return global_posterior, dec
+        #     return global_posterior, dec
 
-        else:
-            # The normal training
-            if freeze_encoder:
-                with torch.no_grad():
-                    posterior = self.encode(x, is_init_image=is_init_image, 
-                            temporal_chunk=temporal_chunk).latent_dist
-            else:
+        # else:
+        # The normal training
+        if freeze_encoder:
+            with torch.no_grad():
                 posterior = self.encode(x, is_init_image=is_init_image, 
                         temporal_chunk=temporal_chunk).latent_dist
-        
-            if sample_posterior:
-                z = posterior.sample(generator=generator)
-            else:
-                z = posterior.mode()
+        else:
+            posterior = self.encode(x, is_init_image=is_init_image, 
+                    temporal_chunk=temporal_chunk).latent_dist
+    
+        if sample_posterior:
+            z = posterior.sample(generator=generator)
+        else:
+            z = posterior.mode()
 
-            dec = self.decode(z, is_init_image=is_init_image, temporal_chunk=temporal_chunk).sample
+        dec = self.decode(z, is_init_image=is_init_image, temporal_chunk=temporal_chunk).sample
 
-            return posterior, dec
+        return posterior, dec
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.fuse_qkv_projections
     def fuse_qkv_projections(self):

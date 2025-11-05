@@ -7,13 +7,7 @@ import numpy
 
 from .modeling_causal_vae import CausalVideoVAE
 from .modeling_loss import LPIPSWithDiscriminator
-from utils import (is_context_parallel_intialized,
-                   get_context_parallel_world_size,
-                   get_context_parallel_group_rank,
-                   get_context_parallel_group
-                    )
 
-from .context_parallel_ops import conv_scatter_to_context_parallel_region
 
 
 class CausalVideoVAELossWrapper(nn.Module):
@@ -79,15 +73,15 @@ class CausalVideoVAELossWrapper(nn.Module):
             x = rearrange(x, 'b c t h w -> (b t) c h w')
             x = x.unsqueeze(2)  # [(b t) c 1 h w]
 
-        if is_context_parallel_intialized():
-            assert self.training, "Only supports during training now"
-            cp_world_size = get_context_parallel_world_size()
-            global_src_rank = get_context_parallel_group_rank() * cp_world_size
-            # sync the input and split
-            torch.distributed.broadcast(x, src=global_src_rank, group=get_context_parallel_group())
-            batch_x = conv_scatter_to_context_parallel_region(x, dim=2, kernel_size=1)
-        else:
-            batch_x = x
+        # if is_context_parallel_intialized():
+        #     assert self.training, "Only supports during training now"
+        #     cp_world_size = get_context_parallel_world_size()
+        #     global_src_rank = get_context_parallel_group_rank() * cp_world_size
+        #     # sync the input and split
+        #     torch.distributed.broadcast(x, src=global_src_rank, group=get_context_parallel_group())
+        #     batch_x = conv_scatter_to_context_parallel_region(x, dim=2, kernel_size=1)
+        # else:
+        batch_x = x
 
         posterior, reconstruct = self.vae(batch_x, freeze_encoder=self.freeze_encoder, 
                     is_init_image=True, temporal_chunk=False,)
