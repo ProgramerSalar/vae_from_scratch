@@ -8,7 +8,7 @@ from dataset.video_dataloader import Video_dataloader
 from middleware.optimizer import create_optimizer
 from middleware.native_scaler import NativeScalerWithGradNormCount
 from middleware.scheduler import cosine_scheduler
-from ddp import train_one_epoch
+from train.one_epoch import train_one_epoch
 
 def main(args):
     
