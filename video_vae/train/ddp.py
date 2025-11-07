@@ -92,9 +92,17 @@ def train_one_epoch(args,
             with torch.autograd.set_detect_anomaly(True):
 
                 optimizer.zero_grad()
-                is_second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
-                grad_norm = loss_scaler(rec_loss, optimizer, parameters=model.vae.parameters(), create_graph=is_second_order)
-                print(grad_norm)
+                # rec_loss.backward()
+                # torch.nn.utils.clip_grad_norm(model.vae.parameters(), max_norm=1.0)
+                # optimizer.step()
+                grad_norm = loss_scaler(rec_loss, optimizer, parameters=model.vae.parameters(), create_graph=False)
+                print(f"grad_norm: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> {grad_norm}")
+
+        # if gan_loss is not None:
+        #   with torch.autograd.set_detect_anomaly(True):
+        #     optimizer.zero_grad()
+        #     gan_loss.backward()
+        #     optimizer.step()
 
             
      

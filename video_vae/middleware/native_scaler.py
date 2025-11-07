@@ -10,19 +10,22 @@ class NativeScalerWithGradNormCount:
 
     def __init__(self, enable=True):
         print(f"Set the loss scaled to {enable}")
-        self._scaler = torch.amp.GradScaler(device="cuda", enabled=enable)
+        # self._scaler = torch.amp.GradScaler(device="cuda", enabled=enable)
 
-    def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True, layer_names=None):
-        self._scaler.scale(loss).backward(create_graph=create_graph)
+    def __call__(self, loss, optimizer, parameters=None, create_graph=False, update_grad=True):
+        # self._scaler.scale(loss).backward(create_graph=create_graph)
+        loss.backward(create_graph=create_graph)
 
 
         if update_grad:
-          self._scaler.unscale_(optimizer)
-          # torch.nn.utils.clip_grad_norm_(parameters, 1.0)
-          norm = get_grad_norm(parameters=parameters, layer_names=layer_names)
+          # self._scaler.unscale_(optimizer)
+          torch.nn.utils.clip_grad_norm_(parameters, 1.0)
+          norm = get_grad_norm(parameters=parameters)
 
-          self._scaler.step(optimizer)
-          self._scaler.update()
+          # self._scaler.step(optimizer)
+          optimizer.step()
+          # self._scaler.update()
+          
           
       
         return norm

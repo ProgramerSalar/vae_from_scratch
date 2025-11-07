@@ -17,7 +17,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from dataset.video_dataset import VideoDataset
 import torch.nn.functional as F
-
+torch.autograd.set_detect_anomaly(True)
 
 
 
@@ -35,7 +35,7 @@ class LossFunction(nn.Module):
                  disc_factor=1.0,
                  disc_start=0,
                  disc_weight=0.5,
-                useing_3d_discriminator=False
+                useing_3d_discriminator=True
                  ):
         
         super().__init__()
@@ -55,10 +55,26 @@ class LossFunction(nn.Module):
             disc_weight: Balancing value of discriminator fake and real data.
         """
 
-        self.discriminator = NumberLayerDiscriminator3d(in_channels=disc_in_channels).apply(weights_init) if self.useing_3d_discriminator \
+        self.discriminator = NumberLayerDiscriminator3d(in_channels=disc_in_channels).apply(weights_init) if self.using_3d_discriminator \
                                 else NumberLayerDiscriminator(in_channels=disc_in_channels).apply(weights_init)
         self.lpips = Lpips().eval()
         self.logvar = nn.Parameter(data=torch.ones(()) * logvar_init)
+
+    def calculate_adaptive_weight(self, nll_loss, g_loss, last_layer=None):
+
+        if last_layer is not None:
+            nll_grads = torch.autograd.grad(outputs=nll_loss,
+                                                inputs=last_layer,
+                                                retain_graph=True
+                                                )[0]
+            
+            g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
+
+        d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
+        d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
+        d_weight = d_weight * self.disc_weight
+        
+        return d_weight
 
  
     def forward(self, 
@@ -74,12 +90,18 @@ class LossFunction(nn.Module):
         input = rearrange(input, 'b c t h w -> (b t) c h w').contiguous()
         reconstruct = rearrange(reconstruct, 'b c t h w -> (b t) c h w').contiguous()
 
+        
+
         if optimizer_idx == 0:
+
+            
 
             ##  calculate the reconstruction loss 
             rec_loss = torch.mean(nn.functional.mse_loss(input, reconstruct, reduction='none'),
                                   dim=(1, 2, 3),
                                   keepdim=True)
+
+           
             
             if self.perceptual_weight > 0:
                 
@@ -87,14 +109,17 @@ class LossFunction(nn.Module):
                 perceputual_loss = self.lpips(input, reconstruct)
                 # print(perceputual_loss.shape)
                 nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
+               
 
             nll_loss = nll_loss / torch.exp(self.logvar) + self.logvar  
             weighted_nll_loss = nll_loss
             weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
             nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
+            
 
             kl_loss = posteriors.kl()
             kl_loss = torch.mean(kl_loss)
+            
             
             disc_factor = adopt_weight(
                 weight=self.disc_factor,
@@ -106,21 +131,20 @@ class LossFunction(nn.Module):
                 if self.using_3d_discriminator:
                     reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
                 
-                # [16, 3, 256, 256] -> [16, 1, 14, 14]
-                logits_fake = self.discriminator(reconstruct)    
+                
+                logits_fake = self.discriminator(reconstruct.contiguous())    
+                print(f"what is the shape of logits_fake: >>>>>>>>>>> {logits_fake.shape}")
                 g_loss = -torch.mean(logits_fake)
 
-                nll_grads = torch.autograd.grad(outputs=nll_loss,
-                                                inputs=last_layer,
-                                                retain_graph=True
-                                                )[0]
-            
-                g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
-                d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-6)
-                d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
-                d_weight = d_weight * self.disc_weight
+                try:
+                    d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
+                                                              g_loss=g_loss,
+                                                              last_layer=last_layer)
+                
+                except RuntimeError:
+                    print("Error with LossFunction")
 
-
+                
             loss = (
             weighted_nll_loss 
             + self.kl_weight * kl_loss
@@ -184,11 +208,11 @@ def adopt_weight(weight,
                  threshold=0,
                  value=0.0):
 
-    if global_step < threshold:
-        weight = value
+    # if global_step < threshold:
+    #     weight = value
 
-    else:
-        assert ValueError, "make sure global_step is minimum of threshold"
+    # else:
+    #     assert ValueError, "make sure global_step is minimum of threshold"
 
     return weight
 

@@ -59,6 +59,7 @@ class CausalVideoLossWrapper(nn.Module):
 
         loss_log = {**rec_log, **gan_log}
         
+        
         return reconstruct_loss, gan_loss, loss_log   
 
 
