@@ -5,7 +5,7 @@ import sys
 sys.path.append("../../vae_from_scratch/video_vae")
 
 # from loss.discriminator import NumberLayerDiscriminator, NLayerDiscriminator3D, weights_init
-from loss.discriminator import NumberLayerDiscriminator
+from loss.discriminator import NumberLayerDiscriminator, NumberLayerDiscriminator3d, weights_init
 from loss.lpips import Lpips
 # from lpips import Lpips
 
@@ -34,8 +34,8 @@ class LossFunction(nn.Module):
                  # <-- Discriminator --> ## 
                  disc_factor=1.0,
                  disc_start=0,
-                 disc_weight=0.5
-                
+                 disc_weight=0.5,
+                useing_3d_discriminator=False
                  ):
         
         super().__init__()
@@ -45,6 +45,8 @@ class LossFunction(nn.Module):
         self.disc_start = disc_start
         self.disc_weight = disc_weight
         self.kl_weight = kl_weight
+        self.using_3d_discriminator = useing_3d_discriminator
+        self.discriminator_iter_start = disc_start
 
         """
             perceptual_weight: you can turn to fine-tune how much your model cares about making images that look right to a human eye.
@@ -53,7 +55,8 @@ class LossFunction(nn.Module):
             disc_weight: Balancing value of discriminator fake and real data.
         """
 
-        self.discriminator = NumberLayerDiscriminator(in_channels=disc_in_channels)
+        self.discriminator = NumberLayerDiscriminator3d(in_channels=disc_in_channels).apply(weights_init) if self.useing_3d_discriminator \
+                                else NumberLayerDiscriminator(in_channels=disc_in_channels).apply(weights_init)
         self.lpips = Lpips().eval()
         self.logvar = nn.Parameter(data=torch.ones(()) * logvar_init)
 
@@ -66,21 +69,22 @@ class LossFunction(nn.Module):
                 last_layer,
                 optimizer_idx,
                 split="train"):
-
+        
+        t = reconstruct.shape[2]
         input = rearrange(input, 'b c t h w -> (b t) c h w').contiguous()
-        target = rearrange(reconstruct, 'b c t h w -> (b t) c h w').contiguous()
+        reconstruct = rearrange(reconstruct, 'b c t h w -> (b t) c h w').contiguous()
 
         if optimizer_idx == 0:
 
             ##  calculate the reconstruction loss 
-            rec_loss = torch.mean(nn.functional.mse_loss(input, target, reduction='none'),
+            rec_loss = torch.mean(nn.functional.mse_loss(input, reconstruct, reduction='none'),
                                   dim=(1, 2, 3),
                                   keepdim=True)
             
             if self.perceptual_weight > 0:
                 
                 # [16, 3, 256, 256] -> [16, 1, 1, 1]
-                perceputual_loss = self.lpips(input, target)
+                perceputual_loss = self.lpips(input, reconstruct)
                 # print(perceputual_loss.shape)
                 nll_loss = self.pixel_weight * rec_loss + self.perceptual_weight * perceputual_loss
 
@@ -95,12 +99,15 @@ class LossFunction(nn.Module):
             disc_factor = adopt_weight(
                 weight=self.disc_factor,
                 global_step=global_step,
-                threshold=0
+                threshold=self.discriminator_iter_start
             )
 
             if disc_factor > 0.0:
+                if self.using_3d_discriminator:
+                    reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
+                
                 # [16, 3, 256, 256] -> [16, 1, 14, 14]
-                logits_fake = self.discriminator(target)    
+                logits_fake = self.discriminator(reconstruct)    
                 g_loss = -torch.mean(logits_fake)
 
                 nll_grads = torch.autograd.grad(outputs=nll_loss,
@@ -132,19 +139,22 @@ class LossFunction(nn.Module):
                 "{}/g_loss".format(split): g_loss.detach().mean(),
             }
             
-            return log, loss
+            return loss, log
         
         if optimizer_idx == 1:
+            if self.using_3d_discriminator:
+                input = rearrange(input, "(b t) c h w -> b c t h w", t=t)
+                reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
 
             # [16, 3, 256, 256] -> [16, 1, 14, 14]
-            real_logits = self.discriminator(input)
-            fake_logits = self.discriminator(target)
+            real_logits = self.discriminator(input.contiguous().detach())
+            fake_logits = self.discriminator(reconstruct.contiguous().detach())
             
             disc_factor = adopt_weight(weight=self.disc_factor,
                                        global_step=global_step,
-                                       threshold=0)
+                                       threshold=self.discriminator_iter_start)
             
-            d_loss = hinge_disc_loss(logits_real=real_logits,
+            d_loss = disc_factor * hinge_disc_loss(logits_real=real_logits,
                                      logits_fake=fake_logits)
             
             log = {
@@ -154,7 +164,7 @@ class LossFunction(nn.Module):
             }
             
             
-            return log, d_loss
+            return d_loss, log
 
             
             

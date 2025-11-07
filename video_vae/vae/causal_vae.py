@@ -35,17 +35,19 @@ class CausalVAE(nn.Module):
         return out
     
     
-    def forward(self, x):
+    def forward(self, x, generator:torch.Generator=None):
 
+        # <----------- Encoder part 
         h = self.encoder(x)
-        posterior = DiagonalGaussianDistribution(h)
+        moments = self.quant_conv(h)
+        posterior = DiagonalGaussianDistribution(moments)
 
-        # generator = torch.Generator(device=torch.device('cpu'))
-        # # [2, 6, 1, 32, 32] -> torch.Size([2, 3, 1, 32, 32])
-        z = posterior.mode()
+        # <------------ Decoder part 
+        z = posterior.sample(generator=generator)
         dec = self.decoder(z)
 
         return posterior, dec
+        
     
 
     def encode(self, 
@@ -69,28 +71,28 @@ class CausalVAE(nn.Module):
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # model = CausalVAE().to(device)
-    # print(model)
+    model = CausalVAE(num_groups=2).to(device)
+    print(model)
 
-    # learnable_param =  sum(param.numel() for param in model.parameters())
-    # print(f"learnable_parameters: {learnable_param / 1e6} Million")
+    learnable_param =  sum(param.numel() for param in model.parameters())
+    print(f"learnable_parameters: {learnable_param / 1e6} Million")
 
 
-    # x = torch.randn(2, 3, 8, 256, 256).to(device)
-    # posterior, dec = model(x)
-    # print(posterior, dec.shape)
+    x = torch.randn(2, 3, 8, 256, 256).to(device)
+    posterior, dec = model(x)
+    print(posterior, dec.shape)
 
     # print('-'*40)
     # print(model.get_last_layer().shape)
     # -------------------------------------------------------------------
 
-    model = CausalVAE(num_groups=1)
-    print(model)
+    # model = CausalVAE(num_groups=1)
+    # print(model)
 
-    x = torch.randn(1, 3, 8, 256, 256)
-    # encode_latent = model.encode_latent(x)
-    # print(f"Encode Latents: {encode_latent}")
-    encode = model.encode(x)
-    print(f"Encode: {encode}")
+    # x = torch.randn(1, 3, 8, 256, 256)
+    # # encode_latent = model.encode_latent(x)
+    # # print(f"Encode Latents: {encode_latent}")
+    # encode = model.encode(x)
+    # print(f"Encode: {encode}")
     
 

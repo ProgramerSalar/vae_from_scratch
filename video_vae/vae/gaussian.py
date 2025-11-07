@@ -2,7 +2,7 @@ import torch
 from torch import nn 
 from typing import Tuple, Union, Optional, List
 import numpy as np 
-# from diffusers.utils.torch_utils import randn_tensor
+from diffusers.utils.torch_utils import randn_tensor
 
 class DiagonalGaussianDistribution(object):
 
@@ -32,15 +32,15 @@ class DiagonalGaussianDistribution(object):
     def sample(self,
                generator: torch.Generator = None) -> torch.FloatTensor:
         
-        # sample = randn_tensor(shape=self.mean.shape,
-        #              generator=generator,
-        #              device=self.parameters.device,
-        #              dtype=self.parameters.dtype)
+        sample = randn_tensor(shape=self.mean.shape,
+                     generator=generator,
+                     device=self.parameters.device,
+                     dtype=self.parameters.dtype)
 
-        sample = torch.randn(size=self.mean.shape,
-                             generator=generator,
-                             device=self.parameters.device,
-                             dtype=self.parameters.dtype)
+        # sample = torch.randn(size=self.mean.shape,
+        #                      generator=generator,
+        #                      device=self.parameters.device,
+        #                      dtype=self.parameters.dtype)
         
         x = self.mean + self.std * sample
         return x 
