@@ -16,5 +16,5 @@ torchrun --nproc_per_node $GPUS \
     --kl_weight 1e-12 \
     --disc_start 250000 \
     --disc_weight 0.5 \
-    --model_dtype fp16 \
+    --model_dtype fp32 \
     --add_discriminator True
