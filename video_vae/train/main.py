@@ -1,4 +1,5 @@
 
+from math import isnan
 import torch 
 
 from args import get_args
@@ -9,36 +10,105 @@ from dataset.video_dataloader import Video_dataloader
 from middleware.optimizer import create_optimizer
 from middleware.native_scaler import NativeScalerWithGradNormCount
 from middleware.scheduler import cosine_scheduler
-
+from vae.causal_vae import CausalVAE
+from loss.loss import LossFunction
 
 
 
 def main(args):
   device = torch.device("cuda:0")
-  train_video_dataloaders = Video_dataloader(args=args)
-  train_video_dataloaders = next(iter(train_video_dataloaders)).to(device)
-  model = CausalVideoLossWrapper(num_groups=args.batch_size, args=args).to(device)
-  optimizer = create_optimizer(args=args,
-                                 model=model)
+  video_dataloaders = Video_dataloader(args=args)
+  # video_dataloaders = next(iter(train_video_dataloaders)).to(device)
+
+  vae = CausalVAE(num_groups=args.batch_size).to(device)
+  loss = LossFunction(perceptual_weight=args.perceptual_weight,
+                            pixelloss_weight=args.pixelloss_weight,
+                            logvar_init=args.logvar_init,
+                            kl_weight=args.kl_weight,
+                            disc_factor=args.disc_factor,
+                            disc_start=args.disc_start,
+                            disc_weight=args.disc_weight
+                            ).to(device)
   
-  scaler = torch.amp.GradScaler(device="cuda")
+  # optimizer_g = create_optimizer(args=args,
+  #                                model=vae)
+  # optimizer_d = create_optimizer(args, model=loss)
 
+  optimizer_g = torch.optim.AdamW(params=vae.parameters())
+  optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
+  
+  
+  scaler = torch.amp.GradScaler()
 
+  global_step = 0
   for epoch in range(100):
-    optimizer.zero_grad()
 
-    # the reconstruct loss 
-    with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
-      rec_loss, gan_loss, log_loss = model(train_video_dataloaders, epoch)
-      print(rec_loss, gan_loss, log_loss)
+    for train_video_dataloaders in video_dataloaders:
+      train_video_dataloaders = train_video_dataloaders.to(device)
 
-    scaler.scale(rec_loss).backward()
-    scaler.unscale_(optimizer)
-    total_grad_norm = torch.nn.utils.clip_grad_norm_(parameters=model.parameters(),
-                                                      max_norm=1.0)
-    print(f"what is the value have total_grad_norm: >>>>>>>>>>>>>> {total_grad_norm}")
-    scaler.step(optimizer)
-    scaler.update()
+      for p in loss.discriminator.parameters():
+        if p.requires_grad:
+          p.requires_grad = False 
+
+      optimizer_g.zero_grad()
+      with torch.autocast(device_type="cuda", dtype=torch.float16):
+
+        
+        posterior, reconstruct = vae(train_video_dataloaders)
+
+        if torch.isnan(reconstruct).any() or torch.isinf(reconstruct).any():
+          print("!!!!!!!!!!!!!!!!!!! NaN & and Inf value are found !!!!!!!!!!!!!!!!!!!!")
+          break
+
+        # the reconstruct loss 
+        reconstruct_loss, rec_log = loss(train_video_dataloaders,
+                                              reconstruct,
+                                              posterior,
+                                              global_step=global_step,
+                                              last_layer=vae.get_last_layer(),
+                                              optimizer_idx=0)  
+
+        print(reconstruct_loss, rec_log)
+      
+        scaler.scale(reconstruct_loss).backward()
+        scaler.unscale_(optimizer_g)
+        grad_norm = torch.nn.utils.clip_grad_norm_(parameters=vae.parameters(),
+                                                    max_norm=1.0)
+        scaler.step(optimizer_g)
+        # scaler.update()
+      ################################################################################################
+      for p in loss.discriminator.parameters():
+        if not p.requires_grad:
+          p.requires_grad = True
+
+      optimizer_d.zero_grad()
+      with torch.autocast(device_type="cuda", dtype=torch.float16):
+
+        
+        gan_loss, gan_log  = loss(train_video_dataloaders,
+                                        reconstruct.detach(),
+                                        posterior,
+                                        global_step=global_step,
+                                        last_layer=vae.get_last_layer(),
+                                        optimizer_idx=1)
+        print(gan_loss, gan_log)
+
+        scaler.scale(gan_loss).backward()
+        scaler.unscale_(optimizer_d)
+        disc_grad_norm = torch.nn.utils.clip_grad_norm_(parameters=loss.discriminator.parameters(), max_norm=1.0)
+        scaler.step(optimizer_d)
+        scaler.update()
+
+
+        global_step += 1 
+
+    
+
+
+    
+
+    
+
 
 
 
