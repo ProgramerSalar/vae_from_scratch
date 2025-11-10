@@ -84,7 +84,8 @@ class LossFunction(nn.Module):
                 global_step, 
                 last_layer,
                 optimizer_idx,
-                split="train"):
+                split="train",
+                kl_weight=None):
         
         t = reconstruct.shape[2]
         input = rearrange(input, 'b c t h w -> (b t) c h w').contiguous()
@@ -146,7 +147,7 @@ class LossFunction(nn.Module):
                 
             loss = (
             weighted_nll_loss 
-            + self.kl_weight * kl_loss
+            + kl_weight * kl_loss
             + d_weight * disc_factor * g_loss
             )
 

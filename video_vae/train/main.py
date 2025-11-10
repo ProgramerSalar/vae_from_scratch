@@ -1,4 +1,5 @@
 
+from logging import NOTSET
 from math import isnan
 import torch 
 
@@ -21,30 +22,47 @@ def main(args):
   # video_dataloaders = next(iter(train_video_dataloaders)).to(device)
 
   vae = CausalVAE(num_groups=args.batch_size).to(device)
-  loss = LossFunction(perceptual_weight=args.perceptual_weight,
-                            pixelloss_weight=args.pixelloss_weight,
-                            logvar_init=args.logvar_init,
-                            kl_weight=args.kl_weight,
-                            disc_factor=args.disc_factor,
-                            disc_start=args.disc_start,
-                            disc_weight=args.disc_weight
-                            ).to(device)
+  
   
   # optimizer_g = create_optimizer(args=args,
   #                                model=vae)
   # optimizer_d = create_optimizer(args, model=loss)
 
-  optimizer_g = torch.optim.AdamW(params=vae.parameters())
+  loss = LossFunction(perceptual_weight=args.perceptual_weight,
+                            pixelloss_weight=args.pixelloss_weight,
+                            logvar_init=args.logvar_init,
+                            kl_weight=None,
+                            disc_factor=args.disc_factor,
+                            disc_start=args.disc_start,
+                            disc_weight=args.disc_weight
+                            ).to(device)
+
   optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
+
+  optimizer_g = torch.optim.AdamW(params=vae.parameters())
+  # optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
+
+  kl_weight_start = 0.0 
+  kl_weight_end = 1e-6 
+  kl_anneal_steps = 10000
   
   
   scaler = torch.amp.GradScaler()
 
   global_step = 0
   for epoch in range(100):
+    print(f'------------------------------------------- Epoch: [{epoch}]')
 
     for train_video_dataloaders in video_dataloaders:
       train_video_dataloaders = train_video_dataloaders.to(device)
+
+      # calculate current kl_weight 
+      if global_step < kl_anneal_steps:
+        current_kl_weight = kl_weight_start + (kl_weight_end - kl_weight_start) * (global_step / kl_anneal_steps)
+      else:
+        current_kl_weight = kl_weight_end
+
+      
 
       for p in loss.discriminator.parameters():
         if p.requires_grad:
@@ -62,11 +80,12 @@ def main(args):
 
         # the reconstruct loss 
         reconstruct_loss, rec_log = loss(train_video_dataloaders,
-                                              reconstruct,
+                                              reconstruct.detach(),
                                               posterior,
                                               global_step=global_step,
                                               last_layer=vae.get_last_layer(),
-                                              optimizer_idx=0)  
+                                              optimizer_idx=0,
+                                              kl_weight=current_kl_weight)  
 
         print(reconstruct_loss, rec_log)
       
