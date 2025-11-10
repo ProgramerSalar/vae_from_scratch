@@ -163,8 +163,7 @@ class NumberLayerDiscriminator3d(nn.Module):
         for layer in self.sequence:
             # print(f" layer: {layer}")
             x = layer(x)
-            if isinstance(layer, nn.Conv3d):
-                print(f"what is the shape of data: >>>> {x.shape}")
+            
 
         return x 
 

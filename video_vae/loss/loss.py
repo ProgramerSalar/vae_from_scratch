@@ -131,8 +131,8 @@ class LossFunction(nn.Module):
                 if self.using_3d_discriminator:
                     reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
                 
-                with torch.autocast(device_type="cuda", dtype=torch.float32):
-                  logits_fake = self.discriminator(reconstruct.contiguous())    
+                
+                logits_fake = self.discriminator(reconstruct.contiguous())    
                 print(f"what is the shape of logits_fake: >>>>>>>>>>> {logits_fake.shape}")
                 g_loss = -torch.mean(logits_fake)
 
@@ -169,12 +169,10 @@ class LossFunction(nn.Module):
                 input = rearrange(input, "(b t) c h w -> b c t h w", t=t)
                 reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
 
-            with torch.autocast(device_type="cuda", dtype=torch.float32):
-
-
-              # [16, 3, 256, 256] -> [16, 1, 14, 14]
-              real_logits = self.discriminator(input.contiguous().detach())
-              fake_logits = self.discriminator(reconstruct.contiguous().detach())
+            
+            # [16, 3, 256, 256] -> [16, 1, 14, 14]
+            real_logits = self.discriminator(input.contiguous().detach())
+            fake_logits = self.discriminator(reconstruct.contiguous().detach())
             
             disc_factor = adopt_weight(weight=self.disc_factor,
                                        global_step=global_step,
