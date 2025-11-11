@@ -80,7 +80,7 @@ def main(args):
 
         # the reconstruct loss 
         reconstruct_loss, rec_log = loss(train_video_dataloaders,
-                                              reconstruct.detach(),
+                                              reconstruct,
                                               posterior,
                                               global_step=global_step,
                                               last_layer=vae.get_last_layer(),
