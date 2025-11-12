@@ -1,16 +1,59 @@
-import torch 
+from datasets import load_dataset, Features, Video
 from torch.utils.data import DataLoader
+from decord import VideoReader, cpu
+from torchvision import transforms as T 
+import torch 
 
-from .video_dataset import VideoDataset
+def custom_collate(batch):
 
-def Video_dataloader(args):
+  videos = []
+  for item in batch:
+    path = item['video']['path']
+    vr = VideoReader(path, ctx=cpu(0))
+    total_frames = len(vr)
 
-    # Please you should download the dataset huggingface `path` and download the dataset on `train_dataset` dir
-    # path: https://huggingface.co/datasets/ProgramerSalar/video_dataset/tree/main
-    video_dir = "../../vae_from_scratch/Data/train_dataset/video_dataset/OpenVid_part108"
-    dataset = VideoDataset(video_dir=video_dir)
-    train_video_dataloader = DataLoader(dataset=dataset,
-                                        batch_size=args.batch_size)
+    indices = list(range(0, min(total_frames, 64), 4))[:16]
+    frames = vr.get_batch(indices).asnumpy()
+
+    transform = T.Compose([
+      T.ToPILImage(),
+      T.Resize((256, 256)),
+      T.ToTensor(),
+      T.Normalize([0.5]*3, [0.5]*3)
+    ])
+    video_tensor = torch.stack([transform(f) for f in frames])
+    videos.append(video_tensor)
+
+  return {
+    'video': torch.stack(videos) if len(videos) > 1 else videos[0]
+  }
+
+
+def video_dataloader():
+  ds = load_dataset(
+    "ProgramerSalar/video_dataset",
+    split="train",
+    # streaming=True,
+    cache_dir="../../vae_from_scratch/train_dataset/Data")
+
+  ds = ds.cast_column("video", Video(decode=False))
+  dataloader = DataLoader(ds, batch_size=1, collate_fn=custom_collate, num_workers=0)
+
+  return dataloader
+
+
+
+
+
+
     
-    return train_video_dataloader
 
+if __name__ == "__main__":
+  dataloader = video_dataloader()
+  for batch in dataloader:
+    print(batch['video'].shape)
+
+
+
+
+# hf token: 
