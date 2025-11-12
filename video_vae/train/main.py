@@ -2,12 +2,13 @@
 from logging import NOTSET
 from math import isnan
 import torch 
+from einops import rearrange
 
 from args import get_args
 import sys 
 sys.path.append("../../vae_from_scratch/video_vae")
 from vae.wrapper import CausalVideoLossWrapper
-from dataset.video_dataloader import Video_dataloader
+from dataset.video_dataloader import video_dataloader
 from middleware.optimizer import create_optimizer
 from middleware.native_scaler import NativeScalerWithGradNormCount
 from middleware.scheduler import cosine_scheduler
@@ -18,7 +19,7 @@ from loss.loss import LossFunction
 
 def main(args):
   device = torch.device("cuda:0")
-  video_dataloaders = Video_dataloader(args=args)
+  video_dataloaders = video_dataloader(args)
   # video_dataloaders = next(iter(train_video_dataloaders)).to(device)
 
   vae = CausalVAE(num_groups=args.batch_size).to(device)
@@ -54,7 +55,12 @@ def main(args):
     print(f'------------------------------------------- Epoch: [{epoch}]')
 
     for train_video_dataloaders in video_dataloaders:
-      train_video_dataloaders = train_video_dataloaders.to(device)
+      train_video_dataloaders = train_video_dataloaders['video'].to(device)
+      train_video_dataloaders = rearrange(train_video_dataloaders, 
+                                          'b t c h w -> b c t h w').contiguous()
+
+      print(f"what is the batch size >>>>>>>>>>>>>>>>>>: {train_video_dataloaders.shape}")
+      
 
       # calculate current kl_weight 
       if global_step < kl_anneal_steps:

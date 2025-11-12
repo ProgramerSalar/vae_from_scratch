@@ -29,7 +29,7 @@ def custom_collate(batch):
   }
 
 
-def video_dataloader():
+def video_dataloader(args):
   ds = load_dataset(
     "ProgramerSalar/video_dataset",
     split="train",
@@ -37,7 +37,7 @@ def video_dataloader():
     cache_dir="../../vae_from_scratch/train_dataset/Data")
 
   ds = ds.cast_column("video", Video(decode=False))
-  dataloader = DataLoader(ds, batch_size=1, collate_fn=custom_collate, num_workers=0)
+  dataloader = DataLoader(ds, batch_size=args.batch_size, collate_fn=custom_collate, num_workers=0)
 
   return dataloader
 

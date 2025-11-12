@@ -5,7 +5,7 @@ GPUS=1
 
 torchrun --nproc_per_node $GPUS \
     ../../vae_from_scratch/video_vae/train/main.py \
-    --batch_size 1 \
+    --batch_size 2 \
     --opt adamw \
     --lr 1e-4 \
     --weight_decay 1e-3 \
