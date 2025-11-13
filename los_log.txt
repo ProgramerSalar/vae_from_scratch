@@ -1,74 +1,55 @@
 ------------------------------------------- Epoch: [0]
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(11.2612, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(11.2612, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(32.9530, device='cuda:0'), 'train/nll_loss': tensor(12.1222, device='cuda:0'), 'train/rec_loss': tensor(1.2134, device='cuda:0'), 'train/perception_loss': tensor(-0.0121, device='cuda:0'), 'train/d_weight': tensor(1.8437, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-0.4670, device='cuda:0')}
-tensor(1.5340, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.5340, device='cuda:0'), 'train/logits_real': tensor(0.3818, device='cuda:0'), 'train/logits_fake': tensor(0.4670, device='cuda:0')}
+tensor(5.4148, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(5.4148, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(32.7187, device='cuda:0'), 'train/nll_loss': tensor(6.2449, device='cuda:0'), 'train/rec_loss': tensor(0.5408, device='cuda:0'), 'train/perception_loss': tensor(0.8372, device='cuda:0'), 'train/d_weight': tensor(2.1539, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-0.3854, device='cuda:0')}
+tensor(1.5086, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.5086, device='cuda:0'), 'train/logits_real': tensor(0.4901, device='cuda:0'), 'train/logits_fake': tensor(0.3854, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(157.5512, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(157.5512, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(69980.8594, device='cuda:0'), 'train/nll_loss': tensor(59.6579, device='cuda:0'), 'train/rec_loss': tensor(5.9675, device='cuda:0'), 'train/perception_loss': tensor(-0.0170, device='cuda:0'), 'train/d_weight': tensor(28.7337, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(3.4069, device='cuda:0')}
-tensor(8.0374, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(8.0374, device='cuda:0'), 'train/logits_real': tensor(-3.9214, device='cuda:0'), 'train/logits_fake': tensor(-3.4069, device='cuda:0')}
-------------------------------------------- Epoch: [1]
+tensor(4.9783, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(4.9783, device='cuda:0'), 'train/logvar': tensor(1.0000e-04, device='cuda:0'), 'train/kl_loss': tensor(122.3237, device='cuda:0'), 'train/nll_loss': tensor(4.7336, device='cuda:0'), 'train/rec_loss': tensor(0.3904, device='cuda:0'), 'train/perception_loss': tensor(0.8300, device='cuda:0'), 'train/d_weight': tensor(0.2916, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(0.8393, device='cuda:0')}
+tensor(6.2996, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(6.2996, device='cuda:0'), 'train/logits_real': tensor(-2.2701, device='cuda:0'), 'train/logits_fake': tensor(-0.8393, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(13.0228, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(13.0228, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1.5433e+09, device='cuda:0'), 'train/nll_loss': tensor(16.8450, device='cuda:0'), 'train/rec_loss': tensor(1.6858, device='cuda:0'), 'train/perception_loss': tensor(-0.0132, device='cuda:0'), 'train/d_weight': tensor(3.1557, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-1.3090, device='cuda:0')}
-tensor(4.4134, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(4.4134, device='cuda:0'), 'train/logits_real': tensor(5.3982, device='cuda:0'), 'train/logits_fake': tensor(1.3090, device='cuda:0')}
+tensor(6.3712, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(6.3712, device='cuda:0'), 'train/logvar': tensor(0.0002, device='cuda:0'), 'train/kl_loss': tensor(149.1765, device='cuda:0'), 'train/nll_loss': tensor(4.8128, device='cuda:0'), 'train/rec_loss': tensor(0.4023, device='cuda:0'), 'train/perception_loss': tensor(0.7904, device='cuda:0'), 'train/d_weight': tensor(0.3430, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(4.5436, device='cuda:0')}
+tensor(3.6095, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(3.6095, device='cuda:0'), 'train/logits_real': tensor(4.1094, device='cuda:0'), 'train/logits_fake': tensor(-4.5436, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(13.1341, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(13.1341, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(8.8350e+08, device='cuda:0'), 'train/nll_loss': tensor(11.8431, device='cuda:0'), 'train/rec_loss': tensor(1.1861, device='cuda:0'), 'train/perception_loss': tensor(-0.0180, device='cuda:0'), 'train/d_weight': tensor(0.1136, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(9.0298, device='cuda:0')}
-tensor(3.9854, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(3.9854, device='cuda:0'), 'train/logits_real': tensor(1.1781, device='cuda:0'), 'train/logits_fake': tensor(-9.0298, device='cuda:0')}
-------------------------------------------- Epoch: [2]
+tensor(3.7318, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(3.7318, device='cuda:0'), 'train/logvar': tensor(0.0003, device='cuda:0'), 'train/kl_loss': tensor(937.5568, device='cuda:0'), 'train/nll_loss': tensor(5.0261, device='cuda:0'), 'train/rec_loss': tensor(0.4166, device='cuda:0'), 'train/perception_loss': tensor(0.8612, device='cuda:0'), 'train/d_weight': tensor(0.3912, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-3.3087, device='cuda:0')}
+tensor(3.0227, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(3.0227, device='cuda:0'), 'train/logits_real': tensor(11.4993, device='cuda:0'), 'train/logits_fake': tensor(3.3087, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.4756, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.4756, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(115211.2422, device='cuda:0'), 'train/nll_loss': tensor(10.4872, device='cuda:0'), 'train/rec_loss': tensor(1.0508, device='cuda:0'), 'train/perception_loss': tensor(-0.0211, device='cuda:0'), 'train/d_weight': tensor(0.0196, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-0.5905, device='cuda:0')}
-tensor(2.0843, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(2.0843, device='cuda:0'), 'train/logits_real': tensor(9.8921, device='cuda:0'), 'train/logits_fake': tensor(0.5905, device='cuda:0')}
+tensor(8.0693, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(8.0693, device='cuda:0'), 'train/logvar': tensor(0.0004, device='cuda:0'), 'train/kl_loss': tensor(1451.7930, device='cuda:0'), 'train/nll_loss': tensor(7.8320, device='cuda:0'), 'train/rec_loss': tensor(0.7116, device='cuda:0'), 'train/perception_loss': tensor(0.7190, device='cuda:0'), 'train/d_weight': tensor(0.1609, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(1.4742, device='cuda:0')}
+tensor(1.4661, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.4661, device='cuda:0'), 'train/logits_real': tensor(9.2971, device='cuda:0'), 'train/logits_fake': tensor(-1.4742, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.8182, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.8182, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1006.3967, device='cuda:0'), 'train/nll_loss': tensor(10.8650, device='cuda:0'), 'train/rec_loss': tensor(1.0884, device='cuda:0'), 'train/perception_loss': tensor(-0.0186, device='cuda:0'), 'train/d_weight': tensor(0.0472, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-0.9922, device='cuda:0')}
-tensor(2.0027, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(2.0027, device='cuda:0'), 'train/logits_real': tensor(13.4550, device='cuda:0'), 'train/logits_fake': tensor(0.9922, device='cuda:0')}
-------------------------------------------- Epoch: [3]
+tensor(3.1229, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(3.1229, device='cuda:0'), 'train/logvar': tensor(0.0005, device='cuda:0'), 'train/kl_loss': tensor(1885.6104, device='cuda:0'), 'train/nll_loss': tensor(3.0010, device='cuda:0'), 'train/rec_loss': tensor(0.2270, device='cuda:0'), 'train/perception_loss': tensor(0.7324, device='cuda:0'), 'train/d_weight': tensor(0.0423, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(2.8803, device='cuda:0')}
+tensor(1.4073, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.4073, device='cuda:0'), 'train/logits_real': tensor(0.7104, device='cuda:0'), 'train/logits_fake': tensor(-2.8803, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.9592, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.9592, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(988.2812, device='cuda:0'), 'train/nll_loss': tensor(10.5142, device='cuda:0'), 'train/rec_loss': tensor(1.0530, device='cuda:0'), 'train/perception_loss': tensor(-0.0155, device='cuda:0'), 'train/d_weight': tensor(0.1073, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(4.1480, device='cuda:0')}
-tensor(1.0222, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.0222, device='cuda:0'), 'train/logits_real': tensor(4.2201, device='cuda:0'), 'train/logits_fake': tensor(-4.1480, device='cuda:0')}
+tensor(4.4789, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(4.4789, device='cuda:0'), 'train/logvar': tensor(0.0006, device='cuda:0'), 'train/kl_loss': tensor(2057.7075, device='cuda:0'), 'train/nll_loss': tensor(4.4598, device='cuda:0'), 'train/rec_loss': tensor(0.3672, device='cuda:0'), 'train/perception_loss': tensor(0.7897, device='cuda:0'), 'train/d_weight': tensor(0.0245, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(0.7818, device='cuda:0')}
+tensor(0.9836, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(0.9836, device='cuda:0'), 'train/logits_real': tensor(3.0330, device='cuda:0'), 'train/logits_fake': tensor(-0.7818, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.3093, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.3093, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(970.1953, device='cuda:0'), 'train/nll_loss': tensor(10.6426, device='cuda:0'), 'train/rec_loss': tensor(1.0661, device='cuda:0'), 'train/perception_loss': tensor(-0.0179, device='cuda:0'), 'train/d_weight': tensor(0.0649, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-5.1350, device='cuda:0')}
-------------------------------------------- Epoch: [4]
+tensor(4.9011, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(4.9011, device='cuda:0'), 'train/logvar': tensor(0.0007, device='cuda:0'), 'train/kl_loss': tensor(2112.3057, device='cuda:0'), 'train/nll_loss': tensor(4.0428, device='cuda:0'), 'train/rec_loss': tensor(0.3245, device='cuda:0'), 'train/perception_loss': tensor(0.7999, device='cuda:0'), 'train/d_weight': tensor(0.3056, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(2.8091, device='cuda:0')}
+tensor(0.6795, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(0.6795, device='cuda:0'), 'train/logits_real': tensor(3.6870, device='cuda:0'), 'train/logits_fake': tensor(-2.8091, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(18.6269, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(18.6269, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1028.9293, device='cuda:0'), 'train/nll_loss': tensor(16.3196, device='cuda:0'), 'train/rec_loss': tensor(1.6335, device='cuda:0'), 'train/perception_loss': tensor(-0.0158, device='cuda:0'), 'train/d_weight': tensor(0.6047, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(3.8158, device='cuda:0')}
-tensor(1.7971, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.7971, device='cuda:0'), 'train/logits_real': tensor(0.4818, device='cuda:0'), 'train/logits_fake': tensor(-3.8158, device='cuda:0')}
+tensor(4.2515, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(4.2515, device='cuda:0'), 'train/logvar': tensor(0.0008, device='cuda:0'), 'train/kl_loss': tensor(2290.6311, device='cuda:0'), 'train/nll_loss': tensor(3.4695, device='cuda:0'), 'train/rec_loss': tensor(0.2735, device='cuda:0'), 'train/perception_loss': tensor(0.7360, device='cuda:0'), 'train/d_weight': tensor(0.3018, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(2.5914, device='cuda:0')}
+tensor(0.4201, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(0.4201, device='cuda:0'), 'train/logits_real': tensor(5.4280, device='cuda:0'), 'train/logits_fake': tensor(-2.5914, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(12.3366, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(12.3366, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1679.8875, device='cuda:0'), 'train/nll_loss': tensor(11.8288, device='cuda:0'), 'train/rec_loss': tensor(1.1843, device='cuda:0'), 'train/perception_loss': tensor(-0.0146, device='cuda:0'), 'train/d_weight': tensor(0.0723, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(7.0284, device='cuda:0')}
-tensor(1.3621, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.3621, device='cuda:0'), 'train/logits_real': tensor(-0.3024, device='cuda:0'), 'train/logits_fake': tensor(-7.0284, device='cuda:0')}
-------------------------------------------- Epoch: [5]
+tensor(5.2822, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(5.2822, device='cuda:0'), 'train/logvar': tensor(0.0009, device='cuda:0'), 'train/kl_loss': tensor(2657.8484, device='cuda:0'), 'train/nll_loss': tensor(3.8446, device='cuda:0'), 'train/rec_loss': tensor(0.3073, device='cuda:0'), 'train/perception_loss': tensor(0.7742, device='cuda:0'), 'train/d_weight': tensor(0.3750, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(3.8339, device='cuda:0')}
+tensor(1.2793, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.2793, device='cuda:0'), 'train/logits_real': tensor(-1.3861, device='cuda:0'), 'train/logits_fake': tensor(-3.8339, device='cuda:0')}
+----------------------------------------------------------- Iteration
+what is the batch size >>>>>>>>>>>>>>>>>>: torch.Size([1, 3, 16, 256, 256])
 what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.8676, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.8676, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1801.7766, device='cuda:0'), 'train/nll_loss': tensor(11.3193, device='cuda:0'), 'train/rec_loss': tensor(1.1338, device='cuda:0'), 'train/perception_loss': tensor(-0.0191, device='cuda:0'), 'train/d_weight': tensor(0.1886, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-2.3955, device='cuda:0')}
-tensor(3.1888, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(3.1888, device='cuda:0'), 'train/logits_real': tensor(0.8583, device='cuda:0'), 'train/logits_fake': tensor(2.3955, device='cuda:0')}
-what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(11.5663, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(11.5663, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(3023.8481, device='cuda:0'), 'train/nll_loss': tensor(11.3270, device='cuda:0'), 'train/rec_loss': tensor(1.1345, device='cuda:0'), 'train/perception_loss': tensor(-0.0181, device='cuda:0'), 'train/d_weight': tensor(0.0816, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(2.9331, device='cuda:0')}
-tensor(1.4437, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(1.4437, device='cuda:0'), 'train/logits_real': tensor(-0.8026, device='cuda:0'), 'train/logits_fake': tensor(-2.9331, device='cuda:0')}
-------------------------------------------- Epoch: [6]
-what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(12.1018, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(12.1018, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(80871.2500, device='cuda:0'), 'train/nll_loss': tensor(11.4779, device='cuda:0'), 'train/rec_loss': tensor(1.1499, device='cuda:0'), 'train/perception_loss': tensor(-0.0211, device='cuda:0'), 'train/d_weight': tensor(0.1446, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(4.3153, device='cuda:0')}
-tensor(0.3803, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(0.3803, device='cuda:0'), 'train/logits_real': tensor(2.8149, device='cuda:0'), 'train/logits_fake': tensor(-4.3153, device='cuda:0')}
-what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(11.4277, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(11.4277, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(4169627., device='cuda:0'), 'train/nll_loss': tensor(11.3941, device='cuda:0'), 'train/rec_loss': tensor(1.1411, device='cuda:0'), 'train/perception_loss': tensor(-0.0171, device='cuda:0'), 'train/d_weight': tensor(0.0377, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(0.7473, device='cuda:0')}
-tensor(0.7691, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(0.7691, device='cuda:0'), 'train/logits_real': tensor(4.7734, device='cuda:0'), 'train/logits_fake': tensor(-0.7473, device='cuda:0')}
-------------------------------------------- Epoch: [7]
-what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.6057, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.6057, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(64214400., device='cuda:0'), 'train/nll_loss': tensor(10.7979, device='cuda:0'), 'train/rec_loss': tensor(1.0814, device='cuda:0'), 'train/perception_loss': tensor(-0.0157, device='cuda:0'), 'train/d_weight': tensor(0.0523, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-5.3964, device='cuda:0')}
-tensor(3.3111, device='cuda:0', grad_fn=<MulBackward0>) {'train/disc_loss': tensor(3.3111, device='cuda:0'), 'train/logits_real': tensor(8.4485, device='cuda:0'), 'train/logits_fake': tensor(5.3964, device='cuda:0')}
-what is the shape of logits_fake: >>>>>>>>>>> torch.Size([1, 1, 3, 14, 14])
-tensor(10.8066, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(10.8066, device='cuda:0'), 'train/logvar': tensor(0., device='cuda:0'), 'train/kl_loss': tensor(1073486.6250, device='cuda:0'), 'train/nll_loss': tensor(11.3086, device='cuda:0'), 'train/rec_loss': tensor(1.1327, device='cuda:0'), 'train/perception_loss': tensor(-0.0186, device='cuda:0'), 'train/d_weight': tensor(0.0913, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(-5.5139, device='cuda:0')}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+tensor(5.3964, device='cuda:0', grad_fn=<AddBackward0>) {'train/total_loss': tensor(5.3964, device='cuda:0'), 'train/logvar': tensor(0.0009, device='cuda:0'), 'train/kl_loss': tensor(2410.8027, device='cuda:0'), 'train/nll_loss': tensor(5.2654, device='cuda:0'), 'train/rec_loss': tensor(0.4450, device='cuda:0'), 'train/perception_loss': tensor(0.8196, device='cuda:0'), 'train/d_weight': tensor(0.1301, device='cuda:0'), 'train/disc_factor': tensor(1.), 'train/g_loss': tensor(1.0067, device='cuda:0')}

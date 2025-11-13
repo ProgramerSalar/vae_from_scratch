@@ -40,7 +40,10 @@ def main(args):
 
   optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
 
-  optimizer_g = torch.optim.AdamW(params=vae.parameters())
+  optimizer_g = torch.optim.AdamW(
+    list(vae.parameters()) + list(loss.parameters()),
+    lr=1e-4
+    )
   # optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
 
   kl_weight_start = 0.0 
@@ -55,7 +58,12 @@ def main(args):
     print(f'------------------------------------------- Epoch: [{epoch}]')
 
     for train_video_dataloaders in video_dataloaders:
+      print(f"----------------------------------------------------------- Iteration")
+
       train_video_dataloaders = train_video_dataloaders['video'].to(device)
+      if train_video_dataloaders.ndim == 4:
+        train_video_dataloaders = train_video_dataloaders.unsqueeze(0)
+
       train_video_dataloaders = rearrange(train_video_dataloaders, 
                                           'b t c h w -> b c t h w').contiguous()
 
@@ -128,22 +136,6 @@ def main(args):
         global_step += 1 
 
     
-
-
-    
-
-    
-
-
-
-
-
-
-    
-      
-      
-    
-
 
 
 if __name__ == "__main__":

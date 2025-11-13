@@ -58,7 +58,7 @@ class LossFunction(nn.Module):
         self.discriminator = NumberLayerDiscriminator3d(in_channels=disc_in_channels).apply(weights_init) if self.using_3d_discriminator \
                                 else NumberLayerDiscriminator(in_channels=disc_in_channels).apply(weights_init)
         self.lpips = Lpips().eval()
-        self.logvar = nn.Parameter(data=torch.ones(()) * logvar_init)
+        self.logvar = nn.Parameter(torch.ones(size=()) * logvar_init)
 
     def calculate_adaptive_weight(self, nll_loss, g_loss, last_layer=None):
 
@@ -98,9 +98,12 @@ class LossFunction(nn.Module):
             
 
             ##  calculate the reconstruction loss 
+            # it is a simple mean square error (pixel-by-pixel-difference) between the input video and the reconstruct video.
             rec_loss = torch.mean(nn.functional.mse_loss(input, reconstruct, reduction='none'),
                                   dim=(1, 2, 3),
                                   keepdim=True)
+
+            
 
            
             
