@@ -94,9 +94,6 @@ class LossFunction(nn.Module):
         
 
         if optimizer_idx == 0:
-
-            
-
             ##  calculate the reconstruction loss 
             # it is a simple mean square error (pixel-by-pixel-difference) between the input video and the reconstruct video.
             rec_loss = torch.mean(nn.functional.mse_loss(input, reconstruct, reduction='none'),
@@ -105,8 +102,7 @@ class LossFunction(nn.Module):
 
             
 
-           
-            
+    
             if self.perceptual_weight > 0:
                 
                 # [16, 3, 256, 256] -> [16, 1, 1, 1]
@@ -120,9 +116,11 @@ class LossFunction(nn.Module):
             weighted_nll_loss = torch.sum(weighted_nll_loss) / weighted_nll_loss.shape[0]
             nll_loss = torch.sum(nll_loss) / nll_loss.shape[0]
             
-
+            
             kl_loss = posteriors.kl()
+            print(f"what is the loss to comming kl_loss: >>>>>>>>>>>>>>>[Line-1]>>>>>>>>>>>>>>> {kl_loss}")
             kl_loss = torch.mean(kl_loss)
+            print(f"what is the loss to comming kl_loss: >>>>>>>>>>>>>>>[Line-2]>>>>>>>>>>>>>>> {kl_loss}")
             
             
             disc_factor = adopt_weight(
@@ -141,9 +139,10 @@ class LossFunction(nn.Module):
                 g_loss = -torch.mean(logits_fake)
 
                 
-                d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
-                                                          g_loss=g_loss,
-                                                          last_layer=last_layer)
+                # d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
+                #                                           g_loss=g_loss,
+                #                                           last_layer=last_layer)
+                d_weight = torch.tensor(self.disc_weight).to(input.device)
                 
                 
 

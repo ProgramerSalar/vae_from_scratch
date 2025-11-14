@@ -3,6 +3,7 @@ from logging import NOTSET
 from math import isnan
 import torch 
 from einops import rearrange
+import numpy as np 
 
 from args import get_args
 import sys 
@@ -11,13 +12,30 @@ from vae.wrapper import CausalVideoLossWrapper
 from dataset.video_dataloader import video_dataloader
 from middleware.optimizer import create_optimizer
 from middleware.native_scaler import NativeScalerWithGradNormCount
-from middleware.scheduler import cosine_scheduler
+# from middleware.scheduler import cosine_scheduler
 from vae.causal_vae import CausalVAE
 from loss.loss import LossFunction
+import logging 
+
 
 
 
 def main(args):
+
+  logging.basicConfig(
+    level=logging.INFO,  # Set the minimum level to log (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format="%(asctime)s [%(levelname)s] %(message)s",  # Define the format of the log messages
+    handlers=[
+        logging.FileHandler("training.log"),  # --- This line saves logs to "training.log" ---
+        logging.StreamHandler(sys.stdout)   # This line prints logs to the console/terminal
+    ]
+  )
+
+  logger = logging.getLogger()
+
+  logger.info("Starting new training run...")
+
+
   device = torch.device("cuda:0")
   video_dataloaders = video_dataloader(args)
   # video_dataloaders = next(iter(train_video_dataloaders)).to(device)
@@ -47,18 +65,21 @@ def main(args):
   # optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
 
   kl_weight_start = 0.0 
-  kl_weight_end = 1e-6 
+  kl_weight_end = 1e-4
   kl_anneal_steps = 10000
   
+
+  current_kl_weight = 1e-3
+
   
   scaler = torch.amp.GradScaler()
 
   global_step = 0
   for epoch in range(100):
-    print(f'------------------------------------------- Epoch: [{epoch}]')
+    logger.info(f'------------------------------------------- Epoch: [{epoch}]')
 
     for train_video_dataloaders in video_dataloaders:
-      print(f"----------------------------------------------------------- Iteration")
+      logger.info(f"----------------------------------------------------------- Iteration")
 
       train_video_dataloaders = train_video_dataloaders['video'].to(device)
       if train_video_dataloaders.ndim == 4:
@@ -67,14 +88,19 @@ def main(args):
       train_video_dataloaders = rearrange(train_video_dataloaders, 
                                           'b t c h w -> b c t h w').contiguous()
 
-      print(f"what is the batch size >>>>>>>>>>>>>>>>>>: {train_video_dataloaders.shape}")
+      logger.info(f"what is the batch size >>>>>>>>>>>>>>>>>>: {train_video_dataloaders.shape}")
       
 
-      # calculate current kl_weight 
-      if global_step < kl_anneal_steps:
-        current_kl_weight = kl_weight_start + (kl_weight_end - kl_weight_start) * (global_step / kl_anneal_steps)
-      else:
-        current_kl_weight = kl_weight_end
+      # # calculate current kl_weight 
+      # if global_step < kl_anneal_steps:
+      #   # calculate the ratio of completation (0.0 to 1.0)
+      #   # ratio = global_step / kl_anneal_steps
+      #   # calculate the cosine interpolation factor (somoothly goes from 0.0 to  1.0)
+      #   # cosine_factor = 0.5 * (1.0 - np.cos(np.pi * ratio))
+      #   # apply the factor to your start and end weights.
+      #   current_kl_weight = kl_weight_start + (kl_weight_end - kl_weight_start) * (global_step / kl_anneal_steps)
+      # else:
+      #   current_kl_weight = kl_weight_end
 
       
 
@@ -101,14 +127,14 @@ def main(args):
                                               optimizer_idx=0,
                                               kl_weight=current_kl_weight)  
 
-        print(reconstruct_loss, rec_log)
+        logger.info(f"rec_loss: {reconstruct_loss}, rec_log: {rec_log}")
       
         scaler.scale(reconstruct_loss).backward()
         scaler.unscale_(optimizer_g)
         grad_norm = torch.nn.utils.clip_grad_norm_(parameters=vae.parameters(),
                                                     max_norm=1.0)
         scaler.step(optimizer_g)
-        # scaler.update()
+        scaler.update()
       ################################################################################################
       for p in loss.discriminator.parameters():
         if not p.requires_grad:
@@ -124,7 +150,7 @@ def main(args):
                                         global_step=global_step,
                                         last_layer=vae.get_last_layer(),
                                         optimizer_idx=1)
-        print(gan_loss, gan_log)
+        logger.info(f"gan_loss : {gan_loss},  gan_log: {gan_log}")
 
         scaler.scale(gan_loss).backward()
         scaler.unscale_(optimizer_d)

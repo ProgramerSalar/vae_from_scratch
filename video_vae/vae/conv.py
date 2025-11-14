@@ -1,6 +1,6 @@
 import torch
 from torch import nn 
-
+from timm.models.layers import trunc_normal_
 
 
 
@@ -21,6 +21,15 @@ class CausalConv3d(nn.Module):
                               stride=stride,
                               padding=padding,
                               )
+        
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+            trunc_normal_(m.weight, std=.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
         
 
     def forward(self, x):
