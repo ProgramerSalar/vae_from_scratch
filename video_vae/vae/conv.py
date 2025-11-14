@@ -11,7 +11,8 @@ class CausalConv3d(nn.Module):
                  out_channel: int,
                  kernel_size: int = 3,
                  stride=1,
-                 padding=1):
+                 padding=1,
+                 **kwargs):
         
         super().__init__()
 
@@ -20,8 +21,11 @@ class CausalConv3d(nn.Module):
                               kernel_size=kernel_size,
                               stride=stride,
                               padding=padding,
-                              )
+                              **kwargs)
         
+        self.apply(self._init_weights)
+        
+    # custom init weights
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
             trunc_normal_(m.weight, std=.02)
@@ -44,11 +48,13 @@ class CausalGroupNorm(nn.Module):
                  in_channels,
                  num_groups,
                  eps=1e-5,
+                 affine=True
                  ):
         super().__init__()
         self.norm = nn.GroupNorm(num_groups=num_groups,
                                  num_channels=in_channels,
                                  eps=eps,
+                                 affine=affine
                                  )
         
 
