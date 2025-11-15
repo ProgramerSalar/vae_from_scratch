@@ -64,12 +64,12 @@ def main(args):
     )
   # optimizer_d = torch.optim.AdamW(params=loss.discriminator.parameters())
 
-  kl_weight_start = 0.0 
-  kl_weight_end = 1e-4
-  kl_anneal_steps = 10000
+  # kl_weight_start = 1e-6
+  # kl_weight_end = 1e-4
+  # kl_anneal_steps = 1000
   
 
-  current_kl_weight = 1e-3
+  current_kl_weight = 0.01
 
   
   scaler = torch.amp.GradScaler()

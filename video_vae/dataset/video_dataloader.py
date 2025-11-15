@@ -5,12 +5,12 @@ sys.path.append("../../vae_from_scratch/video_vae")
 from dataset.video_dataset import VideoDataset
 
 
-def video_dataloader():
+def video_dataloader(args):
 
   dir = "../../vae_from_scratch/video_vae/dataset/video"
   ds = VideoDataset(dir)
   loader = DataLoader(dataset=ds,
-                      batch_size=1,
+                      batch_size=args.batch_size,
                       num_workers=4)
  
   return loader 
