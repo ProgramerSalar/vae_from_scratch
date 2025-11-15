@@ -4,6 +4,7 @@ import sys
 sys.path.append('../../vae_from_scratch/video_vae')
 from typing import Union
 from diffusers.models.modeling_outputs import AutoencoderKLOutput
+from timm.models.layers import trunc_normal_
 
 from vae.enc import Encoder
 from vae.conv import CausalConv3d
@@ -18,6 +19,7 @@ class CausalVAE(nn.Module):
                  encoder_out_channels=3,):
 
         super().__init__()
+        self.apply(self._init_weights)
         
         self.encoder = Encoder(num_groups=num_groups)
         self.decoder = Decoder(num_groups=num_groups)
@@ -26,6 +28,16 @@ class CausalVAE(nn.Module):
                                        out_channel=2*encoder_out_channels,
                                        kernel_size=3,
                                        stride=1)
+        
+
+    def _init_weights(self, m):
+        if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
+            trunc_normal_(m.weight, std=.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
 
         
     def get_last_layer(self):

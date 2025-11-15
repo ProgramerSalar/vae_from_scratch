@@ -1,5 +1,6 @@
 import torch 
 from torch import nn 
+from timm.models.layers import trunc_normal_
 
 from .block import CausalDeownBlock
 from .middle import MiddleLayer
@@ -16,6 +17,7 @@ class Encoder(nn.Module):
                  enc_frame=(True, True, True, False)):
         
         super().__init__()
+        
 
         self.conv_in = CausalConv3d(in_channels=in_channels,
                                     out_channel=channels[0],

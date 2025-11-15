@@ -10,7 +10,13 @@ class CausalDeownBlock(nn.Module):
                  out_channels,
                  num_groups,
                  enc_feature=False,
-                 enc_frame=True
+                 enc_frame=True,
+                 output_scale_factor: int = 1.0,
+                 resnet_embedding_norm: str = "default",
+                 resnet_temb_channels: int = 512,
+                 resnet_eps: float = 1e-6,
+                 resnet_act_fn: str = "swish",
+                 dropout: float = 0.0
                  ):
         
         super().__init__()
@@ -29,6 +35,12 @@ class CausalDeownBlock(nn.Module):
                 CausalResnet3d(in_channels=input_channels,
                                out_channels=out_channels,
                                num_groups=num_groups,
+                               output_scale_factor=output_scale_factor,
+                               time_embedding_norm=resnet_embedding_norm,
+                               temb_channels=resnet_temb_channels,
+                               eps=resnet_eps,
+                               act_fn=resnet_act_fn,
+                               dropout=dropout
                                )
             )
 
@@ -80,7 +92,13 @@ class causalUpperBlock(nn.Module):
                  out_channels,
                  num_groups,
                  dec_feature=True,
-                 dec_frame=True):
+                 dec_frame=True,
+                 output_scale_factor: int = 1.0,
+                 resnet_embedding_norm: str = "default",
+                 resnet_temb_channels: int = 512,
+                 resnet_eps: float = 1e-6,
+                 resnet_act_fn: str = "swish",
+                 dropout: float = 0.0):
         super().__init__()
         self.dec_feature = dec_feature
         self.dec_frame = dec_frame
@@ -94,6 +112,12 @@ class causalUpperBlock(nn.Module):
                 CausalResnet3d(in_channels=input_channels,
                                out_channels=out_channels,
                                num_groups=num_groups,
+                               output_scale_factor=output_scale_factor,
+                               time_embedding_norm=resnet_embedding_norm,
+                               temb_channels=resnet_temb_channels,
+                               eps=resnet_eps,
+                               act_fn=resnet_act_fn,
+                               dropout=dropout
                                )
             )
 
@@ -110,10 +134,6 @@ class causalUpperBlock(nn.Module):
                                             )
         
         
-
-
-
-
     def forward(self, x):
 
         for layer in self.upper_block:
@@ -133,15 +153,15 @@ class causalUpperBlock(nn.Module):
 
 if __name__ == "__main__":
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # model = CausalDeownBlock(in_channels=128,
     #                          out_channels=256,
     #                          num_groups=2,
-    #                          device=device)
+    #                          )
     # print(model)
 
-    # learnable_parameters = sum(parm.numel() for parm in model.parameters())
-    # print(f"learnable_parameters = {learnable_parameters / 1000000 :.3f} Million")
+    # # learnable_parameters = sum(parm.numel() for parm in model.parameters())
+    # # print(f"learnable_parameters = {learnable_parameters / 1000000 :.3f} Million")
 
 
     # x = torch.randn(2, 128, 8, 256, 256)
@@ -150,7 +170,6 @@ if __name__ == "__main__":
     # ---
     model = causalUpperBlock(in_channels=256,
                              out_channels=128,
-                             device=device,
                              num_groups=2)
     
     x = torch.randn(2, 256, 1, 16, 16)
