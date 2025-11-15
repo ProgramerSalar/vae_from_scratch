@@ -1,12 +1,7 @@
 # This repo to implement the VAE from scratch
 
+download the data set:
 ```
-main (file)
-    | -> one_epoch_train
-    | -> create_optimizer
-    | -> NativebaseGradOptimizer
-    | -> scheduler 
+hf download ProgramerSalar/video_dataset video.zip --repo-type dataset --local-dir .
 
-model (vae)
 ```
-

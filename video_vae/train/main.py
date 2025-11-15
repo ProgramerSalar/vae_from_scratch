@@ -81,12 +81,11 @@ def main(args):
     for train_video_dataloaders in video_dataloaders:
       logger.info(f"----------------------------------------------------------- Iteration")
 
-      train_video_dataloaders = train_video_dataloaders['video'].to(device)
+      train_video_dataloaders = train_video_dataloaders.to(device)
       if train_video_dataloaders.ndim == 4:
         train_video_dataloaders = train_video_dataloaders.unsqueeze(0)
 
-      train_video_dataloaders = rearrange(train_video_dataloaders, 
-                                          'b t c h w -> b c t h w').contiguous()
+      
 
       logger.info(f"what is the batch size >>>>>>>>>>>>>>>>>>: {train_video_dataloaders.shape}")
       
