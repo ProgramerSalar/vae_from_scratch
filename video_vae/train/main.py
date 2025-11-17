@@ -108,7 +108,7 @@ def main(args):
           p.requires_grad = False 
 
       optimizer_g.zero_grad()
-      with torch.autocast(device_type="cuda", dtype=torch.float32):
+      with torch.autocast(device_type="cuda", dtype=torch.float16):
 
         
         posterior, reconstruct = vae(train_video_dataloaders)
@@ -140,7 +140,7 @@ def main(args):
           p.requires_grad = True
 
       optimizer_d.zero_grad()
-      with torch.autocast(device_type="cuda", dtype=torch.float32):
+      with torch.autocast(device_type="cuda", dtype=torch.float16):
 
         
         gan_loss, gan_log  = loss(train_video_dataloaders,

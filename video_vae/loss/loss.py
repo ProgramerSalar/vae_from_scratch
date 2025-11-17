@@ -62,7 +62,14 @@ class LossFunction(nn.Module):
 
     def calculate_adaptive_weight(self, nll_loss, g_loss, last_layer=None):
 
+        """ 
+            The discriminator learns to fast, creating massive gradients that overpower the Reconstruction loss.
+            This function calculate a dynamic weight(`d_weight`) to ensure the Discriminator pulls exactly as 
+            hard as the Reconstruction loss, keeping them balanced.
+        """
+
         if last_layer is not None:
+            # it calculate the gradients for both losses with respect to the last layer of your Decoder.
             nll_grads = torch.autograd.grad(outputs=nll_loss,
                                                 inputs=last_layer,
                                                 retain_graph=True
@@ -118,31 +125,26 @@ class LossFunction(nn.Module):
             
             
             kl_loss = posteriors.kl()
-            print(f"what is the loss to comming kl_loss: >>>>>>>>>>>>>>>[Line-1]>>>>>>>>>>>>>>> {kl_loss}")
             kl_loss = torch.mean(kl_loss)
             print(f"what is the loss to comming kl_loss: >>>>>>>>>>>>>>>[Line-2]>>>>>>>>>>>>>>> {kl_loss}")
             
             
-            disc_factor = adopt_weight(
-                weight=self.disc_factor,
-                global_step=global_step,
-                threshold=self.discriminator_iter_start
-            )
+            
 
-            if disc_factor > 0.0:
-                if self.using_3d_discriminator:
-                    reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
-                
-                
-                logits_fake = self.discriminator(reconstruct.contiguous())    
-                print(f"what is the shape of logits_fake: >>>>>>>>>>> {logits_fake.shape}")
-                g_loss = -torch.mean(logits_fake)
+            
+            if self.using_3d_discriminator:
+                reconstruct = rearrange(reconstruct, "(b t) c h w -> b c t h w", t=t)
+            
+            
+            logits_fake = self.discriminator(reconstruct.contiguous())    
+            print(f"what is the shape of logits_fake: >>>>>>>>>>> {logits_fake.shape}")
+            g_loss = -torch.mean(logits_fake)
 
-                
-                # d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
-                #                                           g_loss=g_loss,
-                #                                           last_layer=last_layer)
-                d_weight = torch.tensor(self.disc_weight).to(input.device)
+            
+            # d_weight = self.calculate_adaptive_weight(nll_loss=nll_loss,
+            #                                           g_loss=g_loss,
+            #                                           last_layer=last_layer)
+            d_weight = torch.tensor(self.disc_weight).to(input.device)
                 
                 
 
@@ -150,7 +152,7 @@ class LossFunction(nn.Module):
             loss = (
             weighted_nll_loss 
             + kl_weight * kl_loss
-            + d_weight * disc_factor * g_loss
+            + d_weight * self.disc_factor * g_loss
             )
 
             log = {
@@ -161,7 +163,7 @@ class LossFunction(nn.Module):
                 "{}/rec_loss".format(split): rec_loss.detach().mean(),
                 "{}/perception_loss".format(split): perceputual_loss.detach().mean(),
                 "{}/d_weight".format(split): d_weight.detach(),
-                "{}/disc_factor".format(split): torch.tensor(disc_factor),
+                "{}/disc_factor".format(split): torch.tensor(self.disc_factor),
                 "{}/g_loss".format(split): g_loss.detach().mean(),
             }
             
@@ -177,11 +179,9 @@ class LossFunction(nn.Module):
             real_logits = self.discriminator(input.contiguous().detach())
             fake_logits = self.discriminator(reconstruct.contiguous().detach())
             
-            disc_factor = adopt_weight(weight=self.disc_factor,
-                                       global_step=global_step,
-                                       threshold=self.discriminator_iter_start)
             
-            d_loss = disc_factor * hinge_disc_loss(logits_real=real_logits,
+            
+            d_loss = self.disc_factor * hinge_disc_loss(logits_real=real_logits,
                                      logits_fake=fake_logits)
             
             log = {
@@ -206,18 +206,6 @@ def hinge_disc_loss(logits_real, logits_fake):
         
 
 
-def adopt_weight(weight,
-                 global_step,
-                 threshold=0,
-                 value=0.0):
-
-    # if global_step < threshold:
-    #     weight = value
-
-    # else:
-    #     assert ValueError, "make sure global_step is minimum of threshold"
-
-    return weight
 
 
 
